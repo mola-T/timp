@@ -1,36 +1,4 @@
-;;; thread.el --- Emacs multithreading library  -*- lexical-binding: t; -*- 
-;;
-;; Copyright (C) 2015-2016 Mola-T
-;; Author: Mola-T <Mola@molamola.xyz>
-;; URL: https://github.com/mola-T/thread
-;; Version: 1.0
-;; Package-Requires: ((emacs 24))
-;; Keywords: internal, lisp, processes, tools
-;;
-;;; License:
-;; This file is NOT part of GNU Emacs.
-;;
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 3, or (at your option)
-;; any later version.
-;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-;;
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to the
-;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-;; Boston, MA 02110-1301, USA.
-;;
-;;; Commentary:
-;;
-;; A package provides multithreading function.
-;; See https://github.com/mola-T/thread for introduction
-;;
-;;; code:
+;;; thread.el ---  -*- lexical-binding: t; -*- 
 
 (require 'fifo)
 (require 'sign)
@@ -39,14 +7,10 @@
 
 (defgroup thread nil
   "Group for thread."
-  :group 'internal
-  :group 'lisp
-  :group 'processes
-  :group 'tools)
+  :group nil)
 
 (defcustom thread-limit 100
   "Maximum number of threads."
-  :tag "Maximum number of threads."
   :group 'thread)
 
 (defconst thread--proc "thread"
@@ -80,52 +44,23 @@
 
 
 
-(defconst thread--data-listener-proc-name "thread-listener"
-  ;; Process name for thread data listener.
+(defconst thread--local-listener-proc-name "thread-listener"
+  ;; Process name for thread local listener.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--data-listener nil
+(defvar thread--local-listener nil
   ;; Store the local network subprocess
   ;; The listener is a loacl server
   ;; that used to receive data from child threads.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--data-port nil
-  ;; Port number of the thread--data-listener.
+(defvar thread--local-port nil
+  ;; Port number of the thread--local-listener.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--data-buffer '(0)
+(defvar thread--listener-buffer '(0)
   ;; Buffer for imcomplete received data
   ;; Minimum need to have a list for nconc 
-  "Private variable. Modifying it may cause serious problem.")
-
-(defconst thread--large-data-listener-proc-name "thread-Dlistener"
-  ;; Process name for thread large data listener.
-  "Private variable. Modifying it may cause serious problem.")
-
-(defvar thread--large-data-listener nil
-  ;; Store the local network subprocess for large data
-  ;; The listener is a loacl server
-  ;; that used to receive large data from child threads.
-  "Private variable. Modifying it may cause serious problem.")
-
-(defvar thread--large-data-port nil
-  ;; Port number of the thread--large-data-listener.
-  "Private variable. Modifying it may cause serious problem.")
-
-(defvar thread--large-data-buffer '(0)
-  ;; Buffer for imcomplete received data
-  ;; Minimum need to have a list for nconc 
-  "Private variable. Modifying it may cause serious problem.")
-
-(defsign thread--large-data-processed)
-
-(defvar thread--large-data-processed-connection
-  ;; Initialize a connection so that large data works keep doing
-  ;; after a one has been done
-  (and (sign-connect :sign 'thread--large-data-processed
-                     :worker 'thread--process-next-large-data)
-       'thread--process-next-large-data)
   "Private variable. Modifying it may cause serious problem.")
 
 
@@ -135,44 +70,45 @@
 (defcustom thread-debug-buffer-name "*thread log*"
   "The buffer name for echo from thread.
 This is for debug purpose."
-  :tag "Name for thread debug buffer."
   :group 'thread)
 
 (defcustom thread-debug-p nil
   ;; It should be nil when release!!!
   "Whether messages from thread are printed to buffer."
-  :tag "Enable thread debug?"
   :group 'thread)
 
 (defvar thread--debug-print-inbound-packet nil
   ;; It should be nil when release!!!
+  ;; A variable that have no effect after compiled.
+  ;; It is used by maintainer to debug the inbound packet before compiled.
   ;; If this is t, inbound packet will be printed to thread log.
   "A variable that have no effect after compiled.")
 
 (defvar thread--debug-print-outbound-packet nil
   ;; It should be nil when release
+  ;; A variable that have no effect after compiled.
+  ;; It is used by maintainer to debug the packet before compiled.
   ;; If this is t, outbound packet will be printed to thread log.
   "A variable that have no effect after compiled.")
 
-(cl-defun thread--debug-print-packet (packet &key inbound)
-  ;; Print inbound and outbound data to thread log
-  "Private function. Using it may cause serious problem."
+(cl-defmacro thread--debug-print-packet (packet &key inbound)
+  ;; It is used by maintainer to debug the inbound packet before compiled.
+  "A macro that is useless after compiled."
+  
   (when (or (and thread--debug-print-inbound-packet inbound)
             (and thread--debug-print-outbound-packet (null inbound)))
-    (thread-debug-print
+    `(thread-debug-print
       (format "thread%d~%s~~ %s"
-              (thread.packet.getSource packet)
-              (or (and inbound "IN") "OUT")
-              (prin1-to-string packet)))))
+              (thread.getid thread)
+              (or (and ,inbound "IN") "OUT")
+              (prin1-to-string ,packet)))))
 
 
 
 
 
 (defcustom thread-kill-emacs-close-thread-delay 5
-  "The time waited for threads to quit safely before closing emacs.
-Default value is 5 seconds."
-  :tag "Time delayed for killing emacs to close threads."
+  "The time waited for threads to quit safely before closing emacs."
   :group 'thread)
 
 
@@ -184,27 +120,22 @@ Default value is 5 seconds."
 
 
 
+(defconst thread--child-thread-quene-folder
+  (file-name-as-directory (concat (file-name-as-directory user-emacs-directory) "thread"))
+  ;; This is shit!!!!
+  ;; If there is other methods please let me know.
+  ;; In the finally state of development, I tested every functions.
+  ;; I found that when multiple threads tried to send large data back to the parent,
+  ;; there is packet lost.
+  ;; It means that different child thread need to quene up their sending.
+  ;; The only way I could think of quening child threads is by using files.....
+  ;; ╭∩╮（￣.￣）╭∩╮
+  
+  "Private signal. Modifying it may cause serious problem.")
 
-(defsubst thread.pushToOutboundBuffer (thread)
-  ;; Push the thread to outbound buffer.
-  ;; These function invokes iff thread fails to send out job for one time.
-  (thread.setQuene thread t)
-  (thread.socket.buffer.add thread))
 
-(defsubst thread.pushToOutbound (thread)
-  ;; Push thread to outbound of the thread.socket
-  ;; Make the setQuene and thread.socket.outbound.push atomic
-  "Private function. Using it may cause serious problem."
-  (thread.setQuene thread t)
-  (thread.socket.outbound.push thread))
 
-(defsubst thread.popFromOutbound ()
-  ;; Pop from outbound of thread.socket and return the thread.
-  ;; Make the setQuene and thread.socket.outbound.pop atomic
-  "Private function. Using it may cause serious problem."
-  (let ((thread (thread.socket.outbound.pop)))
-    (thread.setQuene thread nil)
-    thread))
+
 
 
 
@@ -225,35 +156,19 @@ for quiting the thread either by `thread.quit'(better)
 or `thread.forceQuit'."
   
   ;; Start the local listener
-  (unless (and thread--data-listener (process-live-p (get-process thread--data-listener)))
-    (unless (setq thread--data-listener
-                  (make-network-process :name thread--data-listener-proc-name
-                                        :host 'local
-                                        :server 10
-                                        :service t
-                                        :family 'ipv4
-                                        :filter 'thread--listener-receive-data))
-      (error "Fail to create a data listener thread.")))
-  
-  ;; Wait until thread--data-listener ready
-  (while (null (eq  (process-status thread--data-listener) 'listen)) nil)
-
-  ;; Start the large data listener
-  (unless (and thread--large-data-listener (process-live-p (get-process thread--large-data-listener)))
-    (unless (setq thread--large-data-listener
-                  (make-network-process :name thread--large-data-listener-proc-name
+  (unless (and thread--local-listener (process-live-p (get-process thread--local-listener)))
+    (unless (setq thread--local-listener
+                  (make-network-process :name thread--local-listener-proc-name
                                         :host 'local
                                         :server t
                                         :service t
                                         :family 'ipv4
-                                        :filter 'thread--LDlistener-receive-data))
-      (error "Fail to create a large data listener thread.")))
-  
-  ;; Wait until listeners ready
-  (while (null (eq  (process-status thread--data-listener) 'listen)) nil)
-  (while (null (eq  (process-status thread--large-data-listener) 'listen)) nil)
-  (setq thread--data-port (process-contact thread--data-listener :service))
-  (setq thread--large-data-port (process-contact thread--large-data-listener :service))
+                                        :filter 'thread--listener-receive-data))
+      (error "Fail to create a data listener thread."))
+    
+    ;; Wait until thread--local-listener ready
+    (while (null (eq  (process-status thread--local-listener) 'listen)) nil)
+    (setq thread--local-port (process-contact thread--local-listener :service)))
 
   (catch 'thread-exceed-limit
     (let* ((thread-num (car (rassoc nil thread--record)))
@@ -283,8 +198,7 @@ or `thread.forceQuit'."
         
         (when (process-live-p (get-process thread-name))        
           ;; Send the thread name and local port by stdout
-          (process-send-string thread-name
-                               (concat (prin1-to-string (list thread-num thread--data-port thread--large-data-port)) "\n"))
+          (process-send-string thread-name (concat (prin1-to-string (cons thread-num thread--local-port)) "\n"))
           
           (let ((thread (make-instance 'thread
                                        :id thread-num
@@ -299,74 +213,22 @@ or `thread.forceQuit'."
 
 
 
-(defun thread--listener-receive-data (_proc data)
+(defun thread--listener-receive-data (proc data)
   
   ;; Data will arrived as string.
   ;; Large data will be split into small data chunks at parent process.
   ;; A newline charater "\n" indicates the end of the chunks.
   ;; One chunk is sent at a time.
   ;; Depends on OS, the max. data size for a data chunk is fixed, say 4kb for my PC.
-  ;; So data chunk is put in thread--data-buffer first.
+  ;; So data chunk is put in thread--listener-buffer first.
   ;; And combine to form a complete data when the newline character is met.
   "Private function. Using it may cause serious problem."
   (if (string-match "\n" data (- (length data) 1))
       (progn
-        (nconc thread--data-buffer (list data))
-        (thread.socket.inbound.push thread--data-buffer)
-        (setq thread--data-buffer (list 0))) ;; Need to use (list 0) instead of '(0)
-    (nconc thread--data-buffer (list data))))
-
-
-(defun thread--LDlistener-receive-data (_proc data)
-  
-  ;; It is same as thread--listener-receive-data expect
-  ;; it only process large data (>4kb).
-  "Private function. Using it may cause serious problem."
-  (if (string-match "\n" data (- (length data) 1))
-      (progn
-        (nconc thread--large-data-buffer (list data))
-        (thread.socket.inbound.push thread--large-data-buffer) 
-        (setq thread--large-data-buffer (list 0)) ;; Need to use (list 0) instead of '(0)
-        ;; Emit a singal to process next large data
-        (emit 'thread--large-data-processed))
-    (nconc thread--large-data-buffer (list data))))
-
-
-(defun thread--process-next-large-data ()
-
-  ;; If there is large data permission request quening up
-  ;; Give permission to the next thread.
-  "Private function. Using it may cause serious problem."
-
-  ;; This large data has been processed, pop it.
-  (thread.socket.LDquene.pop)
-  
-  (when (thread.socket.LDquene.hasNext)
-    (let* ((thread (thread.socket.LDquene.first))
-           (sender (thread.getSender thread))
-           packet)
-      
-      (unless (and sender (process-live-p sender))
-        (setq sender (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
-                                          nil
-                                          "localhost"
-                                          (thread.getPort thread)
-                                          'plain)))
-      
-      (setq packet (make-instance 'thread.packet
-                                  :source (thread.getid thread)
-                                  :type 'ldr
-                                  :data t))
-      
-      
-      (process-send-string sender (concat (prin1-to-string packet) "\n"))
-      
-      (thread--debug-print-packet packet :inbound nil)
-      
-      (if (thread.job.hasNext thread)
-          (thread.setSender thread sender)
-        (ignore-errors (delete-process sender))
-        (thread.setSender thread nil)))))
+        (nconc thread--listener-buffer (list data))
+        (thread.socket.inbound.push thread--listener-buffer)
+        (setq thread--listener-buffer (list 0))) ;; Need to use (list 0) instead of '(0)
+    (nconc thread--listener-buffer (list data))))
 
 
 
@@ -392,7 +254,7 @@ or `thread.forceQuit'."
       (setq thread (cdr
                     (assq (thread.packet.getSource packet) thread--record)))
 
-      ;; debug
+      ;; Will disappear after compile
       (thread--debug-print-packet packet :inbound t)
       
       (setq packet-type (thread.packet.getType packet))
@@ -410,9 +272,7 @@ or `thread.forceQuit'."
          ((eq packet-type 'rpy)
           (thread--rpy-packet-handler thread packet))
          ((eq packet-type 'tgi)
-          (thread--tgi-packet-handler thread packet))
-         ((eq packet-type 'ldr)
-          (thread--ldr-packet-handler thread packet)))))))
+          (thread--tgi-packet-handler thread packet)))))))
 
 
 
@@ -480,11 +340,10 @@ or `thread.forceQuit'."
 
 
 
-(defun thread--tgi-packet-handler (_thread packet)
+(defun thread--tgi-packet-handler (thread packet)
 
   ;; Handle instruction generated by child thread.
   ;; Calling appropiate function to handle the instruction.
-  "Private function. Using it may cause serious problem."
 
   (let ((instruction (thread.packet.getReply packet))
         (arg (thread.packet.getData packet)))
@@ -492,35 +351,6 @@ or `thread.forceQuit'."
   ;; Instruction generated by child thread does not count as reply
   ;; It should not change either the quene state or ready state of the thread.
   )
-
-
-
-(defun thread--ldr-packet-handler (thread packet)
-  
-  ;; If there is no other large data request, process it.
-  ;; Otherewise, quene up in thread.socket.LDquene
-  "Private function. Using it may cause serious problem."
-  ;; Push the thread to LDquene of thread.socket
-  (thread.socket.LDquene.push thread)
-  
-  (when (eq (thread.socket.LDquene.first) thread)
-      (let ((sender (thread.getSender thread)))
-        (unless (and sender (process-live-p sender))
-          (while (null
-                  (setq sender (ignore-errors
-                                 (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
-                                                      nil
-                                                      "localhost"
-                                                      (thread.getPort thread)
-                                                      'plain))))))
-        (process-send-string sender (concat (prin1-to-string packet) "\n"))
-        
-        (thread--debug-print-packet packet :inbound nil)
-        
-        (if (thread.job.hasNext thread)
-            (thread.setSender thread sender)
-          (ignore-errors (delete-process sender))
-          (thread.setSender thread nil)))))
 
 
 
@@ -599,7 +429,7 @@ or `thread.forceQuit'."
 way to create a thread instance.")
 
 
-(defmethod initialize-instance :before ((_obj thread) &rest args)
+(defmethod initialize-instance :before ((obj thread) &rest args)
   ;; Constructor. Make sure name and process get initialized.
   "Private function. Using it may cause serious problem."
   (unless (plist-get (car args) ':id)
@@ -706,21 +536,31 @@ way to create a thread instance.")
   "Private function. Using it may cause serious problem."
   (setf (thread.loadPath obj) t))
 
+(defmacro thread.pushToOutboundBuffer (thread)
+  ;; Push the thread to outbound buffer.
+  ;; These function invokes iff thread fails to send out job for one time.
+  `(progn
+     (thread.setQuene ,thread t)
+     (thread.socket.buffer.add ,thread)))
+
+(defmacro thread.pushToOutbound (thread)
+  ;; Push thread to outbound of the thread.socket
+  ;; Make the setQuene and thread.socket.outbound.push atomic
+  "Private function. Using it may cause serious problem."
+  `(progn
+     (thread.setQuene ,thread t)
+     (thread.socket.outbound.push ,thread)))
+
+(defmacro thread.popFromOutbound ()
+  ;; Pop from outbound of thread.socket and return the thread.
+  ;; Make the setQuene and thread.socket.outbound.pop atomic
+  "Private function. Using it may cause serious problem."
+  `(let ((thread (thread.socket.outbound.pop)))
+     (thread.setQuene thread nil)
+     thread))
 
 
 
-(defun thread.validate (object)
-
-  "Validate whether OBJECT is a thread and is valid.
-Return t for valid OBJECT."
-
-  (if (and (thread-p object)
-           (processp (thread.getProcess object))
-           (process-live-p (thread.getProcess object)))
-      t
-    (when (thread-p object)
-      (thread.forceQuit object))
-    nil))
 
 
 (defmethod thread.quit ((obj thread))
@@ -795,7 +635,7 @@ You can ignore it if you don't handle the error.
 
 The instruction will be executed by `apply' in the child thread."
   
-  (let (key rest)
+  (let (rest)
     (dolist (elt arg)
       (if (memq elt '(:unique :reply-func :error-handler :quit-warn))
           (setq key elt)
@@ -830,8 +670,7 @@ The instruction will be executed by `apply' in the child thread."
                                        :type 'code
                                        :data code
                                        :reply reply-func
-                                       :error-handler error-handler
-                                       :quit-warn quit-warn)))
+                                       :error-handler error-handler)))
       (unless (and unique (or (member packet jobs) (equal (thread.getCurrentJob obj) packet)))
         (thread.pushJob obj packet)
         
@@ -862,9 +701,6 @@ You can ignore it if you don't handle the error."
 
 (defmethod thread.requirePackage ((obj thread) &rest packets)
 
-  "Require PACKETS in child threads.
-This function helps managing load-path in child threads."
-
   (unless (thread.isPathReady obj)
     (thread.send.exec obj 'threadS-set-load-path 
                       :error-handler 'thread-debug-print
@@ -873,7 +709,6 @@ This function helps managing load-path in child threads."
 
   (thread.send.exec obj 'threadS-require-packet packets
                     :error-handler 'thread-debug-print))
-
 
 
 
@@ -889,13 +724,9 @@ This function helps managing load-path in child threads."
           (goto-char (point-max))
           (insert (format-time-string "%Y%m%d - %I:%M:%S%p $ ")
                   (format "%s\n" object))
-          (setq buffer-read-only t))
-  (when (eq (current-buffer) (get-buffer thread-debug-buffer-name))
-    (recenter -3)))
-
-
-
-
+          (when (eq (get-buffer-window (current-buffer)) (get-buffer-window thread-debug-buffer-name))
+            (recenter -3))
+          (setq buffer-read-only t)))
 
 
 
@@ -917,12 +748,11 @@ This function helps managing load-path in child threads."
                 ;; Make a network stream
                 (unless (and sender (process-live-p sender))
                   (setq sender 
-                        (ignore-errors
-                          (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
-                                               nil
-                                               "localhost"
-                                               (thread.getPort thread)
-                                               'plain))))
+                        (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
+                                             nil
+                                             "localhost"
+                                             (thread.getPort thread)
+                                             'plain)))
                 
                 (when sender
                   ;; Send job
@@ -931,7 +761,7 @@ This function helps managing load-path in child threads."
                                        (concat (prin1-to-string packet) "\n"))
                   (thread.setCurrentJob thread packet)
 
-                  ;; debug
+                  ;; Will disappear after compile
                   (thread--debug-print-packet packet :inbound nil)
                   
                   (if (thread.job.hasNext thread)
@@ -949,6 +779,9 @@ This function helps managing load-path in child threads."
       ;; Thread is not ready, put to buffer
       (thread.pushToOutboundBuffer thread))))
 
+
+;; (defmethod thread.send.setq ((obj thread) var value)
+;;   (thread.send.exec obj 'threadS-setq var value))
 
 
 
@@ -1015,8 +848,7 @@ Emacs will be quit within %d seconds."
         
         (if stop-quit
             (message "User cancelled kill-emacs action.")
-          (ignore-errors (delete-process thread--data-listener))
-          (ignore-errors (delete-process thread--large-data-listener))
+          (ignore-errors (delete-process thread--local-listener))
           ;; Close the network stream created by child threads.
           (dolist (process (process-list))
             (when (string-prefix-p "thread" (process-name process))
@@ -1026,6 +858,13 @@ Emacs will be quit within %d seconds."
 
 (advice-add 'kill-emacs :around 'thread--kill-emacs)
 (advice-add 'save-buffers-kill-emacs :around 'thread--kill-emacs)
+
+
+(make-directory thread--child-thread-quene-folder t)
+(dolist (file (directory-files thread--child-thread-quene-folder))
+  (unless (or (equal file "..") (equal file "."))
+    (delete-file (concat thread--child-thread-quene-folder file))))
+
 
 (provide 'thread)
 ;;; thread.el ends here

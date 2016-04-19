@@ -1,0 +1,72 @@
+Class thread
+
+Private members
+
+id:         id of thread. Needs to be provided when construct a thread object.
+            Not allowed to change once thread created.
+            
+process:    Process of thread. Needs to be provided when construct a thread object.
+            Not allowed to change once thread created.
+
+sender:     Network process (stream) that send data to child thread.
+            When a thread has jobs in the job quene, it keep the network stream
+            so that reduce repeatly create and destroy a process.
+
+port:       Store the port number of the child thread.
+
+persist:    Thread would be quit automatically when the first job from user done.
+            If persist is set to t, the thread is kept.
+            User is responsible for quiting the thread.
+
+state:      Whether the thread is ready to send out data.
+            When the thread send out a job, the state change to nil.
+            Until reply from the child thread, the state change back to t.
+
+job:        The job quene of the thread. First in first out. See fifo.el.
+
+quene:      Whether the job is queneing in the outbound of the socket.
+            It is binded to thread.pushToOutbound and thread.popFromOutbound to change its state.
+
+
+Object's private functions
+
+thread.getid        Get the thread id.
+                    The thread id can trace a thread in thread--record.
+
+thread.getProcess   Get the thread process.
+                    The thread process is a sub-process of Emacs.
+                    It can use to check whether the process is still existing.
+
+thread.getSender    Get the sender (network stream) to communicate to child thread.
+
+thread.setSender    Associate a network process (network stream) to the thread.
+
+thread.setPort      Set the port number of child thread to the thread instance.
+                    Theoretically, this function calls once per thread.
+
+thread.getPort      Get the port number of the child thread.
+                    It is needed when creating a new network stream.
+
+thread.getPersist   Return t if it is persist, otherwise nil.
+
+thread.setState     Set the state of the thread. t denoted ready.
+
+thread.isReady      Return the state of the thread.
+
+thread.getJob       Return a list of job quene from the thread.
+                    Not really need this function in prctice but for debug purpose.
+
+thread.job.hasNext  Return t if there is still a job for the thread.
+
+thread.pushJob      Push a job to the job quene of the thread.
+                    Job must be a thread.packet.
+
+thread.popJob       Pop a job from the job quene f the thread and return the job.
+                    Job is a thread.packet.
+
+thread.isQuened     Return t if the thread is queneing in thread.socket.
+
+thread.setQuene     Set the queneing state of the thread.
+
+thread.canQuit      Test whether the thread can garbage collect.
+   
