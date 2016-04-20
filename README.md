@@ -21,12 +21,16 @@ ______________________________
 
 In this section, I will introduce the basic functions to let you create a simple multithread program.
 
+<br>
+
 ##### Require this library
 
 ```elisp
 (require 'thread)
 ;; Just add this to the top of your package...
 ```
+
+<br>
 
 ##### `(thread.validate object)`
 
@@ -57,7 +61,9 @@ Valid means you can push jobs to the thread.
 ;; Now a is NOT a valid thread.
 ```
 
-##### `(thread.get &key name persist)`
+<br>
+
+##### `(thread.get &key name persist quit-warn)`
 
 `thread.get` is the *ONLY* function that creates a thread and returns the thread.
 
@@ -70,6 +76,8 @@ It stated whether the thread should be persisted.
 If it is nil, after a single instruction, the thread quits automatically.
 If it is t, the thread persists and you are responsible for quiting the thread
 either by `thread.quit`(better) or `thread.forceQuit`."
+
+I will leave `quit-warn` to thre next-section.
 
 ```elisp
 (setq my-thread (thread.get))
@@ -105,6 +113,7 @@ either by `thread.quit`(better) or `thread.forceQuit`."
 ;; ==> nil
 ```
 
+<br>
 
 ##### `(thread.send.exec thread function &rest arguments &key......)`
 
@@ -157,6 +166,8 @@ What if I make an error in the instruction?
 ;; nothing happen
 ```
 
+<br>
+
 ##### `(thread.send.code thread &key code ....other-keys)`
 
 This is another function let you to send instruction to child thread.
@@ -175,12 +186,16 @@ It works very similar to `thread.send.exec` expect it sends code.
 ```
 All othre properties are the same as `thread.send.exec`.
 
+<br>
+
 ##### `(thread.quit thread)`
 
 This function performs a safe quit on the thread. A safe quit means it allows you to finish the current job and the job quenes.
 After that, it will emit a quit signal in the child thread. Finally, the thread is being quit.
 
 You can think of it as you choose `Shut down` in your computer so as to let your computer to closing jobs.
+
+<br>
 
 ##### `(thread.foreQuit thread)`
 
@@ -192,8 +207,9 @@ The thread is promised to be closed.
 
 ________________________________________
 
+<br>
 
-## How it works?
+## How `thread` works?
 
 Before we move on to a more advanced usage, I think it is better to let you know how `thread` works.
 
@@ -212,13 +228,24 @@ Although `thread` is not a real multithread library, it does perform very close 
 <br>
 ___________________________________
 
+<br>
 
 ## Advance usage
+
+##### `(thread.get &key name persist quit-warn)`
+
+`quit-warn` accepts a string.
+Because child threads may be doing valuable work, if user tried to quit Emacs when the thread is working, it may damage the data.
+Honestly, nothing can be done to prevent user to quit Emacs if they want.
+Therefore, `quit-warn` just accepts a string to prompt for user confirmation to quit.
+If user still want to quit, the thread is forced quit.
 
 ##### `(thread.send.exec thread function &rest arguments &key unique reply-func error-handler quit-warn)`
 ##### `(thread.send.code thread &key code unique reply-func error-handler quit-warn)`
 
 There are four keys for the functions.
+
+<br>
 
 * `reply-func`
 
@@ -245,6 +272,8 @@ The `reply-func` is the function to be called when value is returned.
 
 If you want to debug what is returned, you can pass the returned object to `thread-debug-print`.
 It will print the return object to *thread log* buffer.
+
+<br>
 
 * `error-handler`
 
@@ -273,13 +302,11 @@ The error is catched and can be returned.
 ll ((lambda nil (mapcar (quote identity) 1 2 3 4 5)) wrong-number-of-arguments mapcar 6)
 ```
 
-* `quit-warn`
+<br>
 
-`quit-warn` accepts a string.
-Because child threads may be doing valuable work, if user tried to quit Emacs when the thread is working, it may damage the data.
-Honestly, nothing can be done to prevent user to quit Emacs if they want.
-Therefore, `quit-warn` just accepts a string to prompt for user confirmation to quit.
-If user still want to quit, the thread is forced quit.
+* `quit-warn`
+This `quit-warn` serves the same function to the thread's one. It is job specific.
+If `quit-warn` is set in both `thread.get` and `thread.send.X`, the quit warning in `thread.send.X` has higher priority and will be displayed to user.
 
 ```elisp
 (thread.send.exec my-thread
@@ -302,6 +329,7 @@ You don't want the same job to quene up in the thread. So you can pass `:unique 
 
 ___________________________________
 
+<br>
 
 ## More advance usage
 
