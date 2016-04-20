@@ -4,7 +4,7 @@ The first multithreading elisp library.
 
 ## Requirement
 
-* Emacs
+* Emacs 24
 * Netowrk adaptor
 
 ## Dependency
@@ -21,14 +21,14 @@ ______________________________
 
 In this section, I will introduce the basic functions to let you create a simple multithread program.
 
-### Require this library
+##### Require this library
 
 ```elisp
 (require 'thread)
 ;; Just add this to the top of your package...
 ```
 
-### `(thread.validate object)`
+##### `(thread.validate object)`
 
 This is the first function you need to know. It tells you two information:
 
@@ -57,7 +57,7 @@ Valid means you can push jobs to the thread.
 ;; Now a is NOT a valid thread.
 ```
 
-### `(thread.get &key name persist)`
+##### `(thread.get &key name persist)`
 
 `thread.get` is the *ONLY* function that creates a thread and returns the thread.
 
@@ -106,7 +106,7 @@ either by `thread.quit`(better) or `thread.forceQuit`."
 ```
 
 
-### `(thread.send.exec thread function &rest arguments &key......)`
+##### `(thread.send.exec thread function &rest arguments &key......)`
 
 This is the first function (or two) allowing you to send jobs to threads.
 You can see there are `keys` in the end. I would leave them for now.
@@ -157,7 +157,7 @@ What if I make an error in the instruction?
 ;; nothing happen
 ```
 
-### `(thread.send.code thread &key code ....other-keys)`
+##### `(thread.send.code thread &key code ....other-keys)`
 
 This is another function let you to send instruction to child thread.
 Still, there is other keys we will leave it now.
@@ -175,14 +175,14 @@ It works very similar to `thread.send.exec` expect it sends code.
 ```
 All othre properties are the same as `thread.send.exec`.
 
-### `(thread.quit thread)`
+##### `(thread.quit thread)`
 
 This function performs a safe quit on the thread. A safe quit means it allows you to finish the current job and the job quenes.
 After that, it will emit a quit signal in the child thread. Finally, the thread is being quit.
 
 You can think of it as you choose `Shut down` in your computer so as to let your computer to closing jobs.
 
-### `(thread.foreQuit thread)`
+##### `(thread.foreQuit thread)`
 
 This function performs a force quit on the thread.
 You can think of it as you remove the power from your computer to turn it off.
@@ -215,8 +215,8 @@ ___________________________________
 
 ## Advance usage
 
-### `(thread.send.exec thread function &rest arguments &key unique reply-func error-handler quit-warn)`
-### `(thread.send.code thread &key code unique reply-func error-handler quit-warn)`
+##### `(thread.send.exec thread function &rest arguments &key unique reply-func error-handler quit-warn)`
+##### `(thread.send.code thread &key code unique reply-func error-handler quit-warn)`
 
 There are four keys for the functions.
 
@@ -307,7 +307,7 @@ ___________________________________
 
 In fact, the six functions introduced is everything for `thread`. This part give you a hint to play develop a multithread package.
 
-### Packages working in the dark
+##### Packages working in the dark
 
 Sending complex instruction or codes by `thread.send.exec` or `thread.send.code` is sometimes quite confusing.
 Especially, when you need to deal with variables, determining whether the variables should be evaluated in child thread side or parent thread side.
@@ -346,7 +346,7 @@ In your main package:
 ;; Dose it look better?
 ```
 
-### `(thread.requirePackage thread &rest package)`
+##### `(thread.requirePackage thread &rest package)`
 
 Oh yeah, another function. This is not something new. You have many experiences using `(require 'package)`.
 This is exactly the same thing. Remember I told you before threads are actually separate process.
@@ -355,7 +355,7 @@ So `load-path` in child threads are not well prepared. This function manage to p
 
 When you come to the dark, let me introduce to you two more functions.
 
-### `(threadS-send-tgi-data function data)`
+##### `(threadS-send-tgi-data function data)`
 
 There is no typo. `threadS-x` functions are functions in `thread-server.el` which is working in the dark.
 
@@ -371,11 +371,11 @@ In your dark package, you may have functions monitoring something, for example f
 You can see it as a dark version of `thread.send.exec`.
 
 
-### `(threadS-sleep-for second)`
+##### `(threadS-sleep-for second)`
 
 `sleep-for` behaves differently in the dark. `(threadS-sleep-for second)` is doing exactly the same as `(sleep-for second)`.
 
-### `(threadS-debug-write-file &rest datas)`
+##### `(threadS-debug-write-file &rest datas)`
 
 One more function. This function is so special that I hope you never need to use it. This is the last resort to debug package in the dark.
 When developing `thread`, in the early stage, there is no way to debug easily. If any things go wrong in the dark, the sub-process just close clicly.
