@@ -450,9 +450,9 @@ or `thread.forceQuit'."
   "Private function. Using it may cause serious problem."
   
   (let ((data (thread.packet.getData packet)))
-    (if thread-debug-p
-        (thread-debug-print (format "thread%d~ %s\n" (thread.getid thread) data))
-      (message data))))
+    (when thread-debug-p
+        (thread-debug-print (format "thread%d~ %s\n" (thread.getid thread) data)))
+    (message data)))
 
 
 (defun thread--quit-packet-handler (thread)
