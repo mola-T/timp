@@ -146,7 +146,7 @@ in all examples assuming that you know they are always there.
 ```
 
 Sending single instruction repeatedly is sometimes trouble.
-You can use lambda forom in `function`
+You can use lambda form in `function`
 
 ```elisp
 (thread.send.exec my-thread (lambda ()
@@ -161,7 +161,7 @@ You can use lambda forom in `function`
 What if I make an error in the instruction?
 
 ```elisp
-(thread.send.exec my-thread 'message "I provide" " many " "arguments to message")
+(thread.send.exec my-thread 'message 1 2 3 4 5 6)
 ;; ==>t
 ;; nothing happen
 ```
@@ -281,7 +281,7 @@ The `reply-func` is the function to be called when value is returned.
 ```
 
 If you want to debug what is returned, you can pass the returned object to `thread-debug-print`.
-It will print the return object to *thread log* buffer.
+It will print the return object to \*thread log\* buffer.
 
 <br>
 
@@ -328,6 +328,8 @@ If `quit-warn` is set in both `thread.get` and `thread.send.X`, the quit warning
 ;; Do you really want to quit?
 ```
 
+<br>
+
 * `unique`
 
 Some jobs take times but don't need to perform repeatedly.
@@ -343,19 +345,19 @@ ___________________________________
 
 ## More advance usage
 
-In fact, the six functions introduced is everything for `thread`. This part give you a hint to play develop a multithread package.
+In fact, the six functions introduced is everything for `thread`. This part give you a hint to develop a multithread package.
 
 ### Packages working in the dark
 
 Sending complex instruction or codes by `thread.send.exec` or `thread.send.code` is sometimes quite confusing.
 Especially, when you need to deal with variables, determining whether the variables should be evaluated in child thread side or parent thread side.
-Also, you may have nested backquote when you are sending codes.
-This is ant-ihuman to have such complex codes just for sending correct variables to child thread.
+Also, you may have nested backquotes when you are sending codes.
+This is anti-human to have such complex codes just for sending correct variables to child thread.
 When you come to this point, you may find this advice valuable.
 
 *Why not make things easier?*
 
-The designed of `thread.send.exec` and `thread.send.code` is not for sending complex code. What I expect is I can send a simple command to do complexthings and return simple result. For example, you want to remove all "*.elc" files in a directory, you should just tell the child thread 'Hey, delete all *.elc, tell me when finished.' But not 'Hey, go to folder x. Get all file contents. It they have .elc, delete it. Go to subfolder a.......".
+The designed of `thread.send.exec` and `thread.send.code` is not for sending complex code. What I expect is I can send a simple command to do complexthings and return simple result. For example, you want to remove all "*.elc" files in a directory, you should just tell the child thread 'Hey, delete all *.elc, tell me when finished.' But not 'Hey, go to folder x. Get all file contents. If they have .elc, delete it. Go to subfolder a.......".
 
 To achieved this you may need to seperate the implementation of you code.
 
@@ -384,6 +386,8 @@ In your main package:
 ;; Dose it look better?
 ```
 
+<br>
+
 ##### `(thread.requirePackage thread &rest package)`
 
 Oh yeah, another function. This is not something new. You have many experiences using `(require 'package)`.
@@ -391,13 +395,15 @@ This is exactly the same thing. Remember I told you before threads are actually 
 So `load-path` in child threads are not well prepared. This function manage to provide the `load-path` as well as `require` a package in the child thread.
 
 
-When you come to the dark, let me introduce to you two more functions.
+When you come to the dark, let me introduce to you three more functions.
+
+<br>
 
 ##### `(threadS-send-tgi-data function data)`
 
 There is no typo. `threadS-x` functions are functions in `thread-server.el` which is working in the dark.
 
-When your package go dark, you may need to bribe this package. In your dark package, requiring `thread-server` is optionally. Because `thread-sever` is always loaded (otherwise, `thread.get` fails).
+When your package go dark, you may need to bribe this package. In your dark package, requiring `thread-server` is optional. Because `thread-sever` is always loaded (otherwise, `thread.get` fails).
 Even if you required this package, you will get many compile warnings, because the dark doesn't follow the rule.
 
 OK. We come back to `threadS-send-tgi-data`. `tgi` stands fo thread generated instruction.
@@ -409,9 +415,35 @@ In your dark package, you may have functions monitoring something, for example f
 You can see it as a dark version of `thread.send.exec`.
 
 
+<br>
+
 ##### `(threadS-sleep-for second)`
 
 `sleep-for` behaves differently in the dark. `(threadS-sleep-for second)` is doing exactly the same as `(sleep-for second)`.
+
+<br>
+
+##### `(sign-connect :sign 'threadS-quit-signal :worker 'your-quit-function)`
+
+In `thread.quit`, it says:
+
+>> This function performs a safe quit on the thread. A safe quit means it allows you to finish the current job and the job quenes.
+>> After that, it will emit a quit signal in the child thread. Finally, the thread is being quit.
+
+You may not understand how "emit a quit signal" work. But this is how to work with the quit signal.
+When the thread quits, you may need you write back data to hard disk. You can define a function to write data and connect to the signal in this way:
+
+```elsip
+(sign-connect :sign 'threadS-quit-signal :worker 'my-write-file-function)
+```
+
+You can think of it as
+
+```elisp
+(add-to-hook 'threadS-quit-signal 'my-write-file-function)
+```
+
+<br>
 
 ##### `(threadS-debug-write-file &rest datas)`
 
