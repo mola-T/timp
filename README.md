@@ -315,6 +315,7 @@ ll ((lambda nil (mapcar (quote identity) 1 2 3 4 5)) wrong-number-of-arguments m
 <br>
 
 * `quit-warn`
+
 This `quit-warn` serves the same function to the thread's one. It is job specific.
 If `quit-warn` is set in both `thread.get` and `thread.send.X`, the quit warning in `thread.send.X` has higher priority and will be displayed to user.
 
@@ -483,12 +484,17 @@ ________________________
 
 ## Advertisement Time
 
-*[sign.el](https://github.com/mola-T/sign)*
+**[sign.el](https://github.com/mola-T/sign)**
 
 It is an awesome package (because it is also written by me).
 
 When develping `thread`, I found that I need to delay handling most of the jobs.
-Do you remember data transfer between threads goes through localhost. When the parent thread receive a `reply-func` from two child threads, there is no way to handle them at the same time. Therefore, I developed. `sign.el`. When `reply-func` returned, I just simply `emit` a signal. `emit` a signal quenes up the job in the `timer-list`. The `timer-list` is defined in `C source code`. (I always think that `C source code` is where the magic of emacs happen. They are mysterious and usually have better performance.) Its nature prefectly match what I need. It quenes up jobs. It promised only one job is processed at the same time. It let the original function to finish first. It removes the job from timer list when the job finsihed... But having to code `run-with-timer` in code with `lambda` expression is ugly. So, `sign` works as a package to provide elegant way to mange jobs.
+
+Do you remember data transfer between threads goes through localhost. When the parent thread receive a `reply-func` from two child threads, there is no way to handle them at the same time. Therefore, I developed. `sign.el`.
+
+When `reply-func` returned, I just simply `emit` a signal. `emit` a signal quenes up the job in the `timer-list`. The `timer-list` is defined in `C source code`. (I always think that `C source code` is where the magic of emacs happen. They are mysterious and usually have better performance.) Its nature prefectly match what I need. It quenes up jobs. It promised only one job is processed at the same time. It let the original function to finish first. It removes the job from timer list when the job finsihed...
+
+Having to code `run-with-timer` in code with `lambda` expression is ugly. So, `sign` works as a package to provide elegant way to mange jobs.
 
 
 <br>
