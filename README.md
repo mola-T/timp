@@ -427,8 +427,8 @@ You can see it as a dark version of `thread.send.exec`.
 
 In `thread.quit`, it says:
 
->> This function performs a safe quit on the thread. A safe quit means it allows you to finish the current job and the job quenes.
->> After that, it will emit a quit signal in the child thread. Finally, the thread is being quit.
+> This function performs a safe quit on the thread. A safe quit means it allows you to finish the current job and the job quenes.
+> After that, it will emit a quit signal in the child thread. Finally, the thread is being quit.
 
 You may not understand how "emit a quit signal" work. But this is how to work with the quit signal.
 When the thread quits, you may need you write back data to hard disk. You can define a function to write data and connect to the signal in this way:
@@ -454,3 +454,34 @@ I used this function everywhere to find when did it go wrong and what is the pro
 This function make text file in the home directory to write out data.
 
 After the `error-handler` has been finished, I seldom use it.
+
+
+<br>
+
+### Interesting function : `message`
+
+`message` is a special function in child thread. All `message` in child threads are redirected back to the parent thread. It does not count as a `reply-func`.
+
+```elisp
+(thread.send.exec my-thread
+                  (lambda ()
+                    (message "thread.el")
+                    (message "the first multithread emacs library")
+                    (message "right?")
+                    "false"))
+
+;; Although all message is printed to the echo area
+;; if you capture the return valu by `reply-func`
+;; only "false" is returned.
+```
+
+<br>
+
+________________________
+
+<br>
+
+## Advertisement Time
+
+*(sign.el)[https://github.com/mola-T/sign]*
+
