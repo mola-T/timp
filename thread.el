@@ -211,7 +211,7 @@ Default value is 5 seconds."
 
 
 
-(cl-defun thread.get (&key name persist)
+(cl-defun thread.get (&key name quit-warn persist)
 
   "Create a new thread and the thread is returned.
 NAME specified the name of the thread.
@@ -277,7 +277,6 @@ or `thread.forceQuit'."
                        "-l" (locate-library "fifo")
                        "-l" (locate-library "sign")
                        "-l" (locate-library "thread-packet")
-                       "-l" (locate-library "thread-socket")
                        "-l" (locate-library "thread-server")
                        "-f" "threadS-init")
         
@@ -289,7 +288,8 @@ or `thread.forceQuit'."
           (let ((thread (make-instance 'thread
                                        :id thread-num
                                        :process (get-process thread-name)
-                                       :persist persist)))
+                                       :persist persist
+                                       :quit-warn quit-warn)))
             
             ;; Register the thread to the thread--record
             (setf (cdr (assoc thread-num thread--record)) thread)
@@ -576,6 +576,12 @@ or `thread.forceQuit'."
     :type boolean
     :accessor thread.persist
     :protection :private)
+   (quit-warn
+    :initform nil
+    :initarg :quit-warn
+    :type (or null string)
+    :accessor thread.quitWarn
+    :protection :private)
    (job
     :initform nil
     :accessor thread.job
@@ -644,6 +650,11 @@ way to create a thread instance.")
   "Private function. Using it may cause serious problem."
   ;; Return whether the thread should be persist
   (thread.persist obj))
+
+(defmethod thread.getQuitWarn ((obj thread))
+  "Private function. Using it may cause serious problem."
+  ;; Return the quit warning of the thread.
+  (thread.quitWarn obj))
 
 (defmethod thread.getJob ((obj thread))
   ;; Get job list from thread
@@ -1006,9 +1017,13 @@ Emacs will be quit within %d seconds."
         ;; Force quit any threads without warning
         ;; Ask for user confirm if there is warning
         (dolist (thread threads)
-          (message (prin1-to-string (thread.getCurrentJob thread)))
-          (if (and (thread.getCurrentJob thread) (thread.packet.getQuitWarn (thread.getCurrentJob thread)))
-                (if (yes-or-no-p (thread.packet.getQuitWarn (thread.getCurrentJob thread)))
+          (if (or
+               (and (thread.getCurrentJob thread) (thread.packet.getQuitWarn (thread.getCurrentJob thread)))
+               (thread.getQuitWarn thread))
+              (if (yes-or-no-p (concat (or
+                                        (thread.packet.getQuitWarn (thread.getCurrentJob thread))
+                                        (thread.getQuitWarn thread))
+                                       "\nDo you really want to quit?"))
                   (thread.forceQuit thread)
                 (setq stop-quit t))
             (thread.forceQuit thread)))
