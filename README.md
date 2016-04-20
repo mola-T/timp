@@ -232,6 +232,8 @@ ___________________________________
 
 ## Advance usage
 
+<br>
+
 ##### `(thread.get &key name persist quit-warn)`
 
 `quit-warn` accepts a string.
@@ -240,12 +242,20 @@ Honestly, nothing can be done to prevent user to quit Emacs if they want.
 Therefore, `quit-warn` just accepts a string to prompt for user confirmation to quit.
 If user still want to quit, the thread is forced quit.
 
+```elisp
+(setq my-thread (thread.get :quit-warn "Quitting emacs may lead to data loss."))
+(kill-emacs)
+
+;; ==> Quitting emacs may lead to data loss.
+;; ==> Do you really want to quit?
+```
+
+<br>
+
 ##### `(thread.send.exec thread function &rest arguments &key unique reply-func error-handler quit-warn)`
 ##### `(thread.send.code thread &key code unique reply-func error-handler quit-warn)`
 
 There are four keys for the functions.
-
-<br>
 
 * `reply-func`
 
@@ -335,7 +345,7 @@ ___________________________________
 
 In fact, the six functions introduced is everything for `thread`. This part give you a hint to play develop a multithread package.
 
-##### Packages working in the dark
+### Packages working in the dark
 
 Sending complex instruction or codes by `thread.send.exec` or `thread.send.code` is sometimes quite confusing.
 Especially, when you need to deal with variables, determining whether the variables should be evaluated in child thread side or parent thread side.
