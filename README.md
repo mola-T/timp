@@ -25,7 +25,7 @@ No one like learning, myself included. So `thread` is designed to minimize the l
 
 There are **ONLY 6 functions** you need to use to create a multithread program. If you have experience in concurrency in other languages, you know how to use these functions without my explanation.
 
-1. [`thread.validate`](#threadvalidate-object) -                                Self-explanatory enough?
+1. [`thread.validate`](#threadvalidate-object) --                               Self-explanatory enough?
 2. [`thread.get`](#threadget-key-name-persist-quit-warn) ---------              Self-explanatory enough? Create and return a new thread.
 3. [`thread.send.exec`](#threadsendexec-thread-function-rest-arguments-key) -   Send executing instruction to thread.
 4. [`thread.send.code`](#threadsendcode-thread-key-code-other-keys) -           Same as `thread.send.exec` but send code to thread.
@@ -379,7 +379,7 @@ ___________________________________
 
 ## More advance usage
 
-In fact, the six functions introduced is everything for `thread`. You have got the full power out of `thread` already. This part gives you some hints to develop a multithread package more easily and efficiently.
+In fact, the **6 functions** introduced is everything for `thread`. You have got the full power out of `thread` already. This part gives you some hints to develop a multithread package more easily and efficiently.
 
 
 ### Packages working in the dark
