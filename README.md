@@ -23,14 +23,14 @@ ______________________________
 
 No one like learning, myself included. So `thread` is designed to minimize the learning cureve.
 
-There are **ONLY 6 functions** you need to use to create a multithread program. If you have experience in concurrency in other program, you know how to use these functions without my explanation.
+There are **ONLY 6 functions** you need to use to create a multithread program. If you have experience in concurrency in other languages, you know how to use these functions without my explanation.
 
-1. [`thread.validate`](#threadvalidate-object)    - Self-explanatory enough?
-2. `thread.get`         - Self-explanatory enough? Create and return a new thread.
-3. `thread.send.exec`   - Send executing instruction to thread.
-4. `thread.send.code`   - Same as `thread.send.exec` but send code to thread.
-5. `thread.quit`        - Self-explanatory enough?
-6. `thread.forceQuit`   - Self-explanatory enough?
+1. [`thread.validate`](#threadvalidate-object) -------                          Self-explanatory enough?
+2. [`thread.get`](#threadget-key-name-persist-quit-warn) -                      Self-explanatory enough? Create and return a new thread.
+3. [`thread.send.exec`](#threadsendexec-thread-function-rest-arguments-key) -   Send executing instruction to thread.
+4. [`thread.send.code`](#threadsendcode-thread-key-code-other-keys) -           Same as `thread.send.exec` but send code to thread.
+5. [`thread.quit`](#threadquit-thread) ------                                   Self-explanatory enough?
+6. [`thread.forceQuit`](#threadforequit-thread) -                               Self-explanatory enough?
 
 Well, simple enough? No.
 
