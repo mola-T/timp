@@ -2,6 +2,8 @@
 
 The first multithreading elisp library.
 
+It is intended and indeed esay to use.
+
 ## Requirement
 
 * Emacs 24
@@ -17,11 +19,37 @@ The first multithreading elisp library.
 ______________________________
 <br>
 
-## Basic Usage
+## Learn how to use `thread` in less then **1 minute**
 
-In this section, I will introduce the basic functions to let you create a simple multithread program.
+No one like learning, myself included. So `thread` is designed to minimize the learning cureve.
+
+There are **ONLY** 6 functions you need to use to create a multithread program. If you have experience in concurrency in other program, you know how to use these functions without my explanation.
+
+1. (`thread.validate`)[#`(thread.validate object)`]    - Self-explanatory enough?
+2. `thread.get`         - Self-explanatory enough? Create and return a new thread.
+3. `thread.send.exec`   - Send executing instruction to thread.
+4. `thread.send.code`   - Same as `thread.send.exec` but send code to thread.
+5. `thread.quit`        - Self-explanatory enough?
+6. `thread.forceQuit`   - Self-explanatory enough?
+
+Well, simple enough? No.
+
+Among these three, you use only four of them in general. There is **ONLY** one pattern using them.
+
+* `get` > `send` > `send` > `send` > .......... > `quit`
+
+So that's all.
+
+In the section below, I provide example riched guide for these **6 functions**.
+
+Again, I need to remind you that this library provides only these **6 functions** because I am so lazy ...
 
 <br>
+_______
+
+<br>
+
+## Basic Usage
 
 ##### Require this library
 
@@ -336,7 +364,7 @@ If `quit-warn` is set in both `thread.get` and `thread.send.X`, the quit warning
 Some jobs take times but don't need to perform repeatedly.
 For example, you have a database in the child thread and you write an interactive function to let the user upadate the database.
 The update process may take a minute. It is non-sense if many update requests are sent to child thread while it is upadating.
-You don't want the same job to quene up in the thread. So you can pass `:unique t` to tell `thread` that this job is unique. 
+You don't want the same job to quene up in the thread. So you can pass `:unique t` to tell `thread` that this job is unique.
 
 <br>
 
