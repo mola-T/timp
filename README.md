@@ -34,7 +34,7 @@ There are **ONLY 6 functions** you need to use to create a multithread program. 
 
 Well, simple enough? No.
 
-Among these three, you use only four of them in general. There is **ONLY** one pattern using them.
+Among these **6 functions**, you use only four of them in general. There is **ONLY** one pattern using them.
 
 * `get` > `send` > `send` > `send` > .......... > `quit`
 
