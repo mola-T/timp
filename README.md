@@ -23,9 +23,9 @@ ______________________________
 
 No one like learning, myself included. So `thread` is designed to minimize the learning cureve.
 
-There are **ONLY** 6 functions you need to use to create a multithread program. If you have experience in concurrency in other program, you know how to use these functions without my explanation.
+There are **ONLY 6 functions** you need to use to create a multithread program. If you have experience in concurrency in other program, you know how to use these functions without my explanation.
 
-1. (`thread.validate`)[#`(thread.validate object)`]    - Self-explanatory enough?
+1. (`thread.validate`)[#user-content-threadvalidate-object]    - Self-explanatory enough?
 2. `thread.get`         - Self-explanatory enough? Create and return a new thread.
 3. `thread.send.exec`   - Send executing instruction to thread.
 4. `thread.send.code`   - Same as `thread.send.exec` but send code to thread.
