@@ -4,7 +4,7 @@
 ;; Author: Mola-T <Mola@molamola.xyz>
 ;; URL: https://github.com/mola-T/thread
 ;; Version: 1.0
-;; Package-Requires: ((emacs 24))
+;; Package-Requires: ((emacs "24")(cl-lib "0.5")(fifo "1.0")(sign "1.0"))
 ;; Keywords: internal, lisp, processes, tools
 ;;
 ;;; License:
@@ -27,7 +27,7 @@
 ;;
 ;;; Commentary:
 ;;
-;; A package provides multithreading function.
+;; Thread is an emacs multithreading library.
 ;; See https://github.com/mola-T/thread for introduction
 ;;
 ;;; code:
