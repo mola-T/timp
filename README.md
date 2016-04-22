@@ -18,11 +18,11 @@ It is intended and indeed esay to use.
 
 <a href="https://www.youtube.com/watch?v=Da0TjVRp4MM"
 target="_blank"><img src="image/Emacs_multithread_demo.jpg" 
-alt="Emacs Multithread Demo on Youtube" width="240" height="180" border="10" /></a>
+alt="Emacs Multithread Demo on Youtube" width="960" height="540" border="10" /></a>
 
 <a href="https://www.youtube.com/watch?v=yVcIx3tkGgo"
 target="_blank"><img src="image/Emacs_multithread_performance.jpg" 
-alt="Emacs Multithread Performance on Youtube" width="240" height="180" border="10" /></a>
+alt="Emacs Multithread Performance on Youtube" width="960" height="540" border="10" /></a>
 
 
 <br>
