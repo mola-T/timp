@@ -107,7 +107,7 @@
   "A thread packet class.")
 
 
-(defmethod initialize-instance :before ((obj thread.packet) &rest args)
+(defmethod initialize-instance :before ((_obj thread.packet) &rest args)
   "Constructor. Make sure source and type get initialized."
   (unless (plist-get (car args) ':source)
     (error "Slot :source must be initialized."))

@@ -34,15 +34,15 @@
 ;;; Code:
 (require 'eieio-base)
 (require 'fifo)
-(require 'sign)
+(require 'signal)
 
 
-(defsign thread-socket--outbound-signal
+(defsignal thread-socket--outbound-signal
   ;; Singal to be emitted when there is outbound job.
   "Private variable. Modifying it may cause serious problem.")
 
 
-(defsign thread-socket--inbound-signal
+(defsignal thread-socket--inbound-signal
   ;; Singal to be emitted when there is inbound job.
   "Private variable. Modifying it may cause serious problem.")
 
@@ -123,7 +123,7 @@
   ;; Push DATA to thread.socket buffer.
   "Private function. Using it may cause serious problem."
   (fifo-push thread--socket-instance 'inbound data)
-  (emit 'thread-socket--inbound-signal))
+  (signal-emit 'thread-socket--inbound-signal))
 
 (defun thread.socket.inbound.pop ()
   ;; Get DATA from thread.socket buffer.
@@ -149,7 +149,7 @@
   ;; Push DATA to thread.socket buffer.
   "Private function. Using it may cause serious problem."
   (fifo-push thread--socket-instance 'outbound data)
-  (emit 'thread-socket--outbound-signal))
+  (signal-emit 'thread-socket--outbound-signal))
 
 (defun thread.socket.outbound.pop ()
   ;; Get DATA from thread.socket buffer.

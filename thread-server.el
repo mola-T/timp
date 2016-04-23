@@ -40,8 +40,8 @@
 ;; In reality, don't need to require these package
 ;; Because they are controlled in parent thread
 ;; I put here just for debugging
-;; (require 'fifo)
-;; (require 'sign)
+
+;; (require 'signal)
 ;; (require 'thread-packet)
 
 (defvar threadS-stop nil
@@ -83,7 +83,7 @@ Usually there is only one packet to receive at the same time.
 However, there is an expectional case that it needs to receive
 a large data sending premission.")
 
-(defsign threadS-quit-signal
+(defsignal threadS-quit-signal
   "A block signal to be emitted when it receives
 a quit message from parent thread.")
 
@@ -136,7 +136,7 @@ a quit message from parent thread.")
 
 
 
-(defun threadS-receive-data (proc data)
+(defun threadS-receive-data (_proc data)
 
   "Process received data."
   ;; It needs to be very efficient.
@@ -394,7 +394,7 @@ a packet will be sent to notify the error."
 
 
 
-(defun threadS-message (orig-func &rest args)
+(defun threadS-message (_orig-func &rest args)
 
   "Message is meaningless in child thread.
   So send it back to parent."
@@ -417,7 +417,7 @@ a packet will be sent to notify the error."
   "Terminate the thread safely by emit a signal.
 Any backend packages should make connection to this signal
 if they want to quit safely."
-  (emitB threadS-quit-signal)
+  (signal-emitB threadS-quit-signal)
   (threadS-send-quit))
 
 

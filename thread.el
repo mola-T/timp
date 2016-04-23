@@ -4,7 +4,7 @@
 ;; Author: Mola-T <Mola@molamola.xyz>
 ;; URL: https://github.com/mola-T/thread
 ;; Version: 1.0
-;; Package-Requires: ((emacs "24")(cl-lib "0.5")(fifo "1.0")(sign "1.0"))
+;; Package-Requires: ((emacs "24")(cl-lib "0.5")(fifo "1.0")(signal "1.0"))
 ;; Keywords: internal, lisp, processes, tools
 ;;
 ;;; License:
@@ -33,7 +33,7 @@
 ;;; code:
 
 (require 'fifo)
-(require 'sign)
+(require 'signal)
 (require 'thread-packet)
 (require 'thread-socket)
 
@@ -65,15 +65,15 @@
 
 (defvar thread--outbound-connect
   ;; Initialize a connection to outbound of thread.socket
-  (and (sign-connect :sign 'thread-socket--outbound-signal
-                     :worker 'thread--process-outbound-data)
+  (and (signal-connect :signal 'thread-socket--outbound-signal
+                       :worker 'thread--process-outbound-data)
        'thread--process-outbound-data)
   "Private variable. Modifying it may cause serious problem.")
 
 (defvar thread--inbound-connect
   ;; Initialize a connection to inbound of thread.socket
-  (and (sign-connect :sign 'thread-socket--inbound-signal
-                     :worker 'thread--process-inbound-data)
+  (and (signal-connect :signal 'thread-socket--inbound-signal
+                       :worker 'thread--process-inbound-data)
        'thread--process-inbound-data)
   "Private variable. Modifying it may cause serious problem.")
 
@@ -118,13 +118,13 @@
   ;; Minimum need to have a list for nconc 
   "Private variable. Modifying it may cause serious problem.")
 
-(defsign thread--large-data-processed)
+(defsignal thread--large-data-processed)
 
 (defvar thread--large-data-processed-connection
   ;; Initialize a connection so that large data works keep doing
   ;; after a one has been done
-  (and (sign-connect :sign 'thread--large-data-processed
-                     :worker 'thread--process-next-large-data)
+  (and (signal-connect :signal 'thread--large-data-processed
+                       :worker 'thread--process-next-large-data)
        'thread--process-next-large-data)
   "Private variable. Modifying it may cause serious problem.")
 
@@ -176,7 +176,7 @@ Default value is 5 seconds."
   :group 'thread)
 
 
-(defsign thread--kill-emacs-signal
+(defsignal thread--kill-emacs-signal
   ;; Singal to be emitted after kill-emacs has been invoked.
   ;; More accurately, kill-emacs is adviced around by thread--kill-emacs
   ;; and the signal is emitted by thread--kill-emacs.
@@ -274,8 +274,7 @@ or `thread.forceQuit'."
                         (expand-file-name invocation-name
                                           invocation-directory))
                        "-Q" "-batch"
-                       "-l" (locate-library "fifo")
-                       "-l" (locate-library "sign")
+                       "-l" (locate-library "signal")
                        "-l" (locate-library "thread-packet")
                        "-l" (locate-library "thread-server")
                        "-f" "threadS-init")
@@ -328,7 +327,7 @@ or `thread.forceQuit'."
         (thread.socket.inbound.push thread--large-data-buffer) 
         (setq thread--large-data-buffer (list 0)) ;; Need to use (list 0) instead of '(0)
         ;; Emit a singal to process next large data
-        (emit 'thread--large-data-processed))
+        (signal-emit 'thread--large-data-processed))
     (nconc thread--large-data-buffer (list data))))
 
 
@@ -1002,16 +1001,16 @@ Emacs will be quit within %d seconds."
             ;; Don't block the ui when closing threads
             ;; Update the close thread progress in
             ;; thread--kill-emacs-reporter
-            (sign-connect :sign 'thread--kill-emacs-signal
-                          :worker 'thread--kill-emacs))
+            (signal-connect :signal 'thread--kill-emacs-signal
+                            :worker 'thread--kill-emacs))
           ;; Call itself recusively 
-          (emit 'thread--kill-emacs-signal
-                :delay 0.3
-                :arg (list orig arg (or (and (null count) 1) (1+ count)))))
+          (signal-emit 'thread--kill-emacs-signal
+                       :delay 0.3
+                       :arg (list orig arg (or (and (null count) 1) (1+ count)))))
 
       ;; If no threads, close happily.
       ;; If still has threads, froce close.
-      (sign-disconnect 'thread--kill-emacs-signal 'thread--kill-emacs)
+      (signal-disconnect 'thread--kill-emacs-signal 'thread--kill-emacs)
 
       (let (stop-quit)
         ;; Force quit any threads without warning
