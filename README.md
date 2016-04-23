@@ -14,7 +14,7 @@ It is intended and indeed esay to use.
 * fifo.el - https://github.com/mola-T/fifo
 * sign.el - https://github.com/mola-T/sign
 
-## Demonstration
+## Demonstration (Image linked to youtube)
 
 <a href="https://www.youtube.com/watch?v=Da0TjVRp4MM"
 target="_blank"><img src="image/Emacs_multithread_demo.jpg" 
