@@ -12,7 +12,7 @@ It is intended and indeed esay to use.
 ## Dependency
 
 * fifo.el - https://github.com/mola-T/fifo
-* sign.el - https://github.com/mola-T/sign
+* signal.el - https://github.com/mola-T/signal
 
 ## Demonstration (Image linked to youtube)
 
@@ -469,7 +469,7 @@ You can see it as a dark version of `thread.send.exec`.
 
 <br>
 
-##### `(sign-connect :sign 'threadS-quit-signal :worker 'your-quit-function)`
+##### `(signal-connect :signal 'threadS-quit-signal :worker 'your-quit-function)`
 
 In `thread.quit`, it says:
 
@@ -480,7 +480,7 @@ You may not understand how "emit a quit signal" work. It is not important. But y
 When the thread quits, you may need you write back data to hard disk. You can define a function to write data and connect to the signal in this way:
 
 ```elisp
-(sign-connect :sign 'threadS-quit-signal :worker 'my-write-file-function)
+(signal-connect :signal 'threadS-quit-signal :worker 'my-write-file-function)
 ```
 
 You can think of it as
@@ -529,17 +529,17 @@ ________________________
 
 ## Advertisement Time
 
-**[sign.el](https://github.com/mola-T/sign)**
+**[signal.el](https://github.com/mola-T/signal)**
 
 It is an awesome package (because it is also written by me).
 
 When developing `thread`, I found that I need to delay handling most of the jobs.
 
-Do you remember data transfer between threads goes through localhost. When the parent thread receive a `reply-func` from two child threads, there is no way to handle them at the same time. Therefore, I developed. `sign.el`.
+Do you remember data transfer between threads goes through localhost. When the parent thread receive a `reply-func` from two child threads, there is no way to handle them at the same time. Therefore, I developed. `signal.el`.
 
-When `reply-func` returned, I just simply `emit` a signal. `emit` a signal quenes up the job in the `timer-list`. The `timer-list` is defined in `C source code`. (I always think that `C source code` is where the magic of emacs happen. They are mysterious and usually have better performance.) Its nature prefectly match what I need. It quenes up jobs. It promised only one job is processed at the same time. It let the original function to finish first. It removes the job from timer list when the job finsihed...
+When `reply-func` returned, I just simply emit a signal. Emit a signal quenes up the job in the `timer-list`. The `timer-list` is defined in `C source code`. (I always think that `C source code` is where the magic of emacs happen. They are mysterious and usually have better performance.) Its nature prefectly match what I need. It quenes up jobs. It promised only one job is processed at the same time. It let the original function to finish first. It removes the job from timer list when the job finsihed...
 
-Having to code `run-with-timer` in code with `lambda` expression is ugly. So, `sign` works as a package to provide elegant way to mange jobs.
+Having to code `run-with-timer` in code with `lambda` expression is ugly. So, `signal` works as a package to provide elegant way to mange jobs.
 
 
 <br>
