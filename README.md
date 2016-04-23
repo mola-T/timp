@@ -594,7 +594,7 @@ ____________________________
 
 ## Supprot
 
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NTBNDN9FQM46Q)
+[![paypal](image/buy_me_a_beer)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NTBNDN9FQM46Q)[![paypal](image/buy_me_a_bear)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=6ZSYXKY3KSFRN)
 
 <br>
 

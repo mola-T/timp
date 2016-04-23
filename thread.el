@@ -28,7 +28,7 @@
 ;;; Commentary:
 ;;
 ;; Thread is an emacs multithreading library.
-;; See https://github.com/mola-T/thread for introduction
+;; See https://github.com/mola-T/thread for introduction.
 ;;
 ;;; code:
 
