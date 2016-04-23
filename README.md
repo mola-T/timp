@@ -592,9 +592,9 @@ ____________________________
 
 <br>
 
-## Supprot
+## Support
 
-[![paypal](image/buy_me_a_beer.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NTBNDN9FQM46Q)[![paypal](image/buy_me_a_bear.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=6ZSYXKY3KSFRN)
+[![paypal](image/buy_me_a_beer.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=NTBNDN9FQM46Q)    [![paypal](image/buy_me_a_bear.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=6ZSYXKY3KSFRN)
 
 <br>
 
