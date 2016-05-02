@@ -1,8 +1,8 @@
-;;; thread-packet.el --- data packet to transfer between threads  -*- lexical-binding: t; -*- 
+;;; timp-packet.el --- data packet to transfer between threads  -*- lexical-binding: t; -*- 
 ;;
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
-;; URL: https://github.com/mola-T/thread
+;; URL: https://github.com/mola-T/timp
 ;; Version: 1.0
 ;; Keywords: internal, lisp, processes, tools
 ;;
@@ -26,13 +26,13 @@
 ;;
 ;;; Commentary:
 ;;
-;; It provides thread.packet class which is used to transfer
+;; It provides timp-packet class which is used to transfer
 ;; instrustion or data between parent threads and child threads.
 ;;
 ;;; code:
 (require 'eieio)
 
-(defconst thread--packet-type
+(defconst timp--packet-type
   '(port err msg quit exe code rpy tgi ldr)
   ;; Type of packet.
   ;; Stand for:
@@ -47,24 +47,24 @@
   ;; ldr = large data request
   "Private variable. Modifying it may cause serious problem.")
 
-(defun thread--packet-type-p (test)
+(defun timp--packet-type-p (test)
   ;; Predicate whether TEST is a correct thread type.
   "Private function. Using it may cause serious problem."
-  (memq test thread--packet-type))
+  (memq test timp--packet-type))
 
 
-(defclass thread.packet ()
+(defclass timp-packet ()
   ((source :initarg :source
            :type integer
-           :accessor thread.packet.source
+           :accessor timp-packet-source
            :protection :private)
    ;; The id of thread whose send this packet
    ;; For parent thread, it is not really important
    ;; For child thread, it is very important as parent thread
    ;; needs this info to differentiate which child thread is replying
    (type :initarg :type
-         :type (satisfies thread--packet-type-p)
-         :accessor thread.packet.type
+         :type (satisfies timp--packet-type-p)
+         :accessor timp-packet-type
          :protection :private)
    ;; port err msg exe cod rpy
    ;; Stand for:
@@ -79,35 +79,35 @@
    ;; ldr = large data request
    (data :initarg :data
          :initform nil
-         :accessor thread.packet.data
+         :accessor timp-packet-data
          :protection :private)
    ;; Store the data
    (reply :initarg :reply
           :initform nil
-          :accessor thread.packet.reply
+          :accessor timp-packet-reply
           :protection :private)
    ;; Store the function that will be called when the job is done and repiled.
    ;; The function will be called with argument stored in data
    ;; where data is the return value of the job
    (error-handler :initarg :error-handler
                   :initform nil
-                  :accessor thread.packet.errorHandler
+                  :accessor timp-packet-error-handler
                   :protection :private)
    ;; The function to be called if error occure in child thread.
    ;; The function need to accept the error infomation will be
    ;; passed to the handler function
    (quit-warn :initarg :quit-warn
               :initform nil
-              :accessor thread.packet.quitWarn
+              :accessor timp-packet-quit-warn
               :protection :private)
    ;; The message to be printed and asked for confirmation
    ;; if the thread is tried to force quit by user.
    )
   ;; Once a packet is created, it cannot be modified.
-  "A thread packet class.")
+  "A timp packet class.")
 
 
-(defmethod initialize-instance :before ((_obj thread.packet) &rest args)
+(defmethod initialize-instance :before ((_obj timp-packet) &rest args)
   "Constructor. Make sure source and type get initialized."
   (unless (plist-get (car args) ':source)
     (error "Slot :source must be initialized."))
@@ -115,40 +115,40 @@
     (error "Slot :type must be initialized.")))
 
 
-(defmethod thread.packet.getSource ((obj thread.packet))
+(defmethod timp-packet-get-source ((obj timp-packet))
   ;; Get the source thread of the packet.
   "Private function. Using it may cause serious problem."
-  (thread.packet.source obj))
+  (timp-packet-source obj))
 
-(defmethod thread.packet.getType ((obj thread.packet))
+(defmethod timp-packet-get-type ((obj timp-packet))
   ;; Get the type of the packet.
   "Private function. Using it may cause serious problem."
-  (thread.packet.type obj))
+  (timp-packet-type obj))
 
-(defmethod thread.packet.getData ((obj thread.packet))
+(defmethod timp-packet-get-data ((obj timp-packet))
   ;; Get the Data of the packet.
   "Private function. Using it may cause serious problem."
-  (thread.packet.data obj))
+  (timp-packet-data obj))
 
-(defmethod thread.packet.getReply ((obj thread.packet))
+(defmethod timp-packet-get-reply ((obj timp-packet))
   ;; Get the reply form packet
   "Private function. Using it may cause serious problem."
-  (thread.packet.reply obj))
+  (timp-packet-reply obj))
 
-(defmethod thread.packet.getErrorHandler ((obj thread.packet))
+(defmethod timp-packet-get-error-handler ((obj timp-packet))
   ;; Get the error handler form packet
   "Private function. Using it may cause serious problem."
-  (thread.packet.errorHandler obj))
+  (timp-packet-error-handler obj))
 
-(defmethod thread.packet.getQuitWarn ((obj thread.packet))
+(defmethod timp-packet-get-quit-warn ((obj timp-packet))
   ;; Get the quit warning message from packet
   "Private function. Using it may cause serious problem."
-  (thread.packet.quitWarn obj))
+  (timp-packet-quit-warn obj))
 
-(defmethod thread.packet.clrQuitWarn ((obj thread.packet))
-  ;; Get the quit warning message from packet
-  "Private function. Using it may cause serious problem."
-  (setf (thread.packet.quitWarn obj) nil))
+;; (defmethod thread.packet.clrQuitWarn ((obj timp-packet))
+;;   ;; Get the quit warning message from packet
+;;   "Private function. Using it may cause serious problem."
+;;   (setf (timp-packet-quit-warn obj) nil))
 
-(provide 'thread-packet)
-;;; thread-packet.el ends here
+(provide 'timp-packet)
+;;; timp-packet.el ends here

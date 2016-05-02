@@ -1,10 +1,10 @@
-;;; thread.el --- Emacs multithreading library  -*- lexical-binding: t; -*- 
+;;; timp.el --- Multithreading library  -*- lexical-binding: t; -*- 
 ;;
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
-;; URL: https://github.com/mola-T/thread
+;; URL: https://github.com/mola-T/timp
 ;; Version: 1.0
-;; Package-Requires: ((emacs "24")(cl-lib "0.5")(fifo "1.0")(signal "1.0"))
+;; Package-Requires: ((emacs "24.4")(cl-lib "0.5")(fifo-class "1.0")(signal "1.0"))
 ;; Keywords: internal, lisp, processes, tools
 ;;
 ;;; License:
@@ -28,190 +28,164 @@
 ;;; Commentary:
 ;;
 ;; Thread is an emacs multithreading library.
-;; See https://github.com/mola-T/thread for introduction.
+;; See https://github.com/mola-T/timp for introduction.
 ;;
 ;;; code:
 
-(require 'fifo)
+(require 'fifo-class)
 (require 'signal)
-(require 'thread-packet)
-(require 'thread-socket)
+(require 'timp-packet)
+(require 'timp-socket)
 
-(defgroup thread nil
-  "Group for thread."
+(defgroup timp nil
+  "Group for timp."
   :group 'internal
   :group 'lisp
   :group 'processes
   :group 'tools)
 
-(defcustom thread-limit 100
+(defcustom timp-limit 100
   "Maximum number of threads."
   :tag "Maximum number of threads."
-  :group 'thread)
+  :group 'timp)
 
-(defconst thread--proc "thread"
+(defconst timp--proc "thread"
   ;; Process name for thread server.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--record
+(defvar timp--record
   ;; Save a record of threads whether they are occupied or free
   ;; format '((0 . <process0>) (1 . nil) (2 . <process3>)....)
   (mapcar 'list
-          (number-sequence 0 (- thread-limit 1)))
+          (number-sequence 0 (- timp-limit 1)))
   "Private variable. Modifying it may cause serious problem.")
 
-
-
-
-(defvar thread--outbound-connect
-  ;; Initialize a connection to outbound of thread.socket
-  (and (signal-connect :signal 'thread-socket--outbound-signal
-                       :worker 'thread--process-outbound-data)
-       'thread--process-outbound-data)
+(defvar timp--outbound-connect
+  ;; Initialize a connection to outbound of timp-socket
+  (and (signal-connect :signal 'timp-socket--outbound-signal
+                       :worker 'timp--process-outbound-data)
+       'timp--process-outbound-data)
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--inbound-connect
-  ;; Initialize a connection to inbound of thread.socket
-  (and (signal-connect :signal 'thread-socket--inbound-signal
-                       :worker 'thread--process-inbound-data)
-       'thread--process-inbound-data)
+(defvar timp--inbound-connect
+  ;; Initialize a connection to inbound of timp-socket
+  (and (signal-connect :signal 'timp-socket--inbound-signal
+                       :worker 'timp--process-inbound-data)
+       'timp--process-inbound-data)
   "Private variable. Modifying it may cause serious problem.")
 
-
-
-
-(defconst thread--data-listener-proc-name "thread-listener"
+(defconst timp--data-listener-proc-name "thread-listener"
   ;; Process name for thread data listener.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--data-listener nil
+(defvar timp--data-listener nil
   ;; Store the local network subprocess
   ;; The listener is a loacl server
   ;; that used to receive data from child threads.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--data-port nil
-  ;; Port number of the thread--data-listener.
+(defvar timp--data-port nil
+  ;; Port number of the timp--data-listener.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--data-buffer '(0)
+(defvar timp--data-buffer '(0)
   ;; Buffer for imcomplete received data
   ;; Minimum need to have a list for nconc 
   "Private variable. Modifying it may cause serious problem.")
 
-(defconst thread--large-data-listener-proc-name "thread-Dlistener"
+(defconst timp--large-data-listener-proc-name "thread-Dlistener"
   ;; Process name for thread large data listener.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--large-data-listener nil
+(defvar timp--large-data-listener nil
   ;; Store the local network subprocess for large data
   ;; The listener is a loacl server
   ;; that used to receive large data from child threads.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--large-data-port nil
-  ;; Port number of the thread--large-data-listener.
+(defvar timp--large-data-port nil
+  ;; Port number of the timp--large-data-listener.
   "Private variable. Modifying it may cause serious problem.")
 
-(defvar thread--large-data-buffer '(0)
+(defvar timp--large-data-buffer '(0)
   ;; Buffer for imcomplete received data
   ;; Minimum need to have a list for nconc 
   "Private variable. Modifying it may cause serious problem.")
 
-(defsignal thread--large-data-processed)
+(defsignal timp--large-data-processed)
 
-(defvar thread--large-data-processed-connection
+(defvar timp--large-data-processed-connection
   ;; Initialize a connection so that large data works keep doing
   ;; after a one has been done
-  (and (signal-connect :signal 'thread--large-data-processed
-                       :worker 'thread--process-next-large-data)
-       'thread--process-next-large-data)
+  (and (signal-connect :signal 'timp--large-data-processed
+                       :worker 'timp--process-next-large-data)
+       'timp--process-next-large-data)
   "Private variable. Modifying it may cause serious problem.")
 
-
-
-
-
-(defcustom thread-debug-buffer-name "*thread log*"
+(defcustom timp-debug-buffer-name "*timp log*"
   "The buffer name for echo from thread.
 This is for debug purpose."
-  :tag "Name for thread debug buffer."
-  :group 'thread)
+  :tag "Name for timp debug buffer."
+  :group 'timp)
 
-(defcustom thread-debug-p nil
+(defcustom timp-debug-p nil
   ;; It should be nil when release!!!
   "Whether messages from thread are printed to buffer."
   :tag "Enable thread debug?"
-  :group 'thread)
+  :group 'timp)
 
-(defvar thread--debug-print-inbound-packet nil
-  ;; It should be nil when release!!!
-  ;; If this is t, inbound packet will be printed to thread log.
-  "A variable that have no effect after compiled.")
+(defvar timp--debug-print-inbound-packet nil
+  "Whether inbound packet is printed to thread log.")
 
-(defvar thread--debug-print-outbound-packet nil
-  ;; It should be nil when release
-  ;; If this is t, outbound packet will be printed to thread log.
-  "A variable that have no effect after compiled.")
+(defvar timp--debug-print-outbound-packet nil
+  "Whether outbound packet is printed to thread log.")
 
-(cl-defun thread--debug-print-packet (packet &key inbound)
+(cl-defun timp--debug-print-packet (packet &key inbound)
   ;; Print inbound and outbound data to thread log
   "Private function. Using it may cause serious problem."
-  (when (or (and thread--debug-print-inbound-packet inbound)
-            (and thread--debug-print-outbound-packet (null inbound)))
-    (thread-debug-print
+  (when (or (and timp--debug-print-inbound-packet inbound)
+            (and timp--debug-print-outbound-packet (null inbound)))
+    (timp-debug-print
       (format "thread%d~%s~~ %s"
-              (thread.packet.getSource packet)
+              (timp-packet-get-source packet)
               (or (and inbound "IN") "OUT")
               (prin1-to-string packet)))))
 
-
-
-
-
-(defcustom thread-kill-emacs-close-thread-delay 5
+(defcustom timp-kill-emacs-close-thread-delay 5
   "The time waited for threads to quit safely before closing emacs.
 Default value is 5 seconds."
   :tag "Time delayed for killing emacs to close threads."
-  :group 'thread)
+  :group 'timp)
 
-
-(defsignal thread--kill-emacs-signal
+(defsignal timp--kill-emacs-signal
   ;; Singal to be emitted after kill-emacs has been invoked.
-  ;; More accurately, kill-emacs is adviced around by thread--kill-emacs
-  ;; and the signal is emitted by thread--kill-emacs.
+  ;; More accurately, kill-emacs is adviced around by timp--kill-emacs
+  ;; and the signal is emitted by timp--kill-emacs.
   "Private signal. Modifying it may cause serious problem.")
 
-
-
-
-(defsubst thread.pushToOutboundBuffer (thread)
+(defsubst timp--push-to-outbound-buffer (thread)
   ;; Push the thread to outbound buffer.
   ;; These function invokes iff thread fails to send out job for one time.
-  (thread.setQuene thread t)
-  (thread.socket.buffer.add thread))
+  (timp-set-quene thread t)
+  (timp-add-to-socket-buffer thread))
 
-(defsubst thread.pushToOutbound (thread)
-  ;; Push thread to outbound of the thread.socket
-  ;; Make the setQuene and thread.socket.outbound.push atomic
+(defsubst timp--push-to-outbound (thread)
+  ;; Push thread to outbound of the timp-socket
+  ;; Make the setQuene and timp-socket-outbound-push atomic
   "Private function. Using it may cause serious problem."
-  (thread.setQuene thread t)
-  (thread.socket.outbound.push thread))
+  (timp-set-quene thread t)
+  (timp-socket-outbound-push thread))
 
-(defsubst thread.popFromOutbound ()
-  ;; Pop from outbound of thread.socket and return the thread.
-  ;; Make the setQuene and thread.socket.outbound.pop atomic
+(defsubst timp--pop-from-outbound ()
+  ;; Pop from outbound of timp-socket and return the thread.
+  ;; Make the setQuene and timp-socket-outbound-pop atomic
   "Private function. Using it may cause serious problem."
-  (let ((thread (thread.socket.outbound.pop)))
-    (thread.setQuene thread nil)
+  (let ((thread (timp-socket-outbound-pop)))
+    (timp-set-quene thread nil)
     thread))
 
 
-
-
-
-
-(cl-defun thread.get (&key name quit-warn persist)
+(cl-defun timp-get (&key name quit-warn persist)
 
   "Create a new thread and the thread is returned.
 NAME specified the name of the thread.
@@ -221,46 +195,46 @@ PERSIST stated whether the thread should be persisted.
 If it is nil, after a single instruction,
 the thread quits automatically.
 If it is t, the thread persists and you are responsible
-for quiting the thread either by `thread.quit'(better)
-or `thread.forceQuit'."
+for quiting the thread either by `timp-quit'(better)
+or `timp-force-quit'."
   
   ;; Start the local listener
-  (unless (and thread--data-listener (process-live-p (get-process thread--data-listener)))
-    (unless (setq thread--data-listener
-                  (make-network-process :name thread--data-listener-proc-name
+  (unless (and timp--data-listener (process-live-p (get-process timp--data-listener)))
+    (unless (setq timp--data-listener
+                  (make-network-process :name timp--data-listener-proc-name
                                         :host 'local
                                         :server 10
                                         :service t
                                         :family 'ipv4
-                                        :filter 'thread--listener-receive-data))
+                                        :filter 'timp--listener-receive-data))
       (error "Fail to create a data listener thread.")))
   
-  ;; Wait until thread--data-listener ready
-  (while (null (eq  (process-status thread--data-listener) 'listen)) nil)
+  ;; Wait until timp--data-listener ready
+  (while (null (eq  (process-status timp--data-listener) 'listen)) nil)
 
   ;; Start the large data listener
-  (unless (and thread--large-data-listener (process-live-p (get-process thread--large-data-listener)))
-    (unless (setq thread--large-data-listener
-                  (make-network-process :name thread--large-data-listener-proc-name
+  (unless (and timp--large-data-listener (process-live-p (get-process timp--large-data-listener)))
+    (unless (setq timp--large-data-listener
+                  (make-network-process :name timp--large-data-listener-proc-name
                                         :host 'local
                                         :server t
                                         :service t
                                         :family 'ipv4
-                                        :filter 'thread--LDlistener-receive-data))
+                                        :filter 'timp--LDlistener-receive-data))
       (error "Fail to create a large data listener thread.")))
   
   ;; Wait until listeners ready
-  (while (null (eq  (process-status thread--data-listener) 'listen)) nil)
-  (while (null (eq  (process-status thread--large-data-listener) 'listen)) nil)
-  (setq thread--data-port (process-contact thread--data-listener :service))
-  (setq thread--large-data-port (process-contact thread--large-data-listener :service))
+  (while (null (eq  (process-status timp--data-listener) 'listen)) nil)
+  (while (null (eq  (process-status timp--large-data-listener) 'listen)) nil)
+  (setq timp--data-port (process-contact timp--data-listener :service))
+  (setq timp--large-data-port (process-contact timp--large-data-listener :service))
 
   (catch 'thread-exceed-limit
-    (let* ((thread-num (car (rassoc nil thread--record)))
+    (let* ((thread-num (car (rassoc nil timp--record)))
            thread-name)
 
       (if thread-num
-          (setq thread-name (concat thread--proc
+          (setq thread-name (concat timp--proc
                                     (format "%04d" thread-num)
                                     (and name (concat " - " name))))
         (throw 'thread-exceed-limit nil))
@@ -275,109 +249,101 @@ or `thread.forceQuit'."
                                           invocation-directory))
                        "-Q" "-batch"
                        "-l" (locate-library "signal")
-                       "-l" (locate-library "thread-packet")
-                       "-l" (locate-library "thread-server")
-                       "-f" "threadS-init")
+                       "-l" (locate-library "timp-packet")
+                       "-l" (locate-library "timp-server")
+                       "-f" "timp-server-init")
         
         (when (process-live-p (get-process thread-name))        
           ;; Send the thread name and local port by stdout
           (process-send-string thread-name
-                               (concat (prin1-to-string (list thread-num thread--data-port thread--large-data-port)) "\n"))
+                               (concat (prin1-to-string (list thread-num timp--data-port timp--large-data-port)) "\n"))
           
-          (let ((thread (make-instance 'thread
+          (let ((thread (make-instance 'timp
                                        :id thread-num
                                        :process (get-process thread-name)
                                        :persist persist
                                        :quit-warn quit-warn)))
             
-            ;; Register the thread to the thread--record
-            (setf (cdr (assoc thread-num thread--record)) thread)
+            ;; Register the thread to the timp--record
+            (setf (cdr (assoc thread-num timp--record)) thread)
             thread))))))
 
-
-
-
-
-(defun thread--listener-receive-data (_proc data)
+(defun timp--listener-receive-data (_proc data)
   
   ;; Data will arrived as string.
   ;; Large data will be split into small data chunks at parent process.
   ;; A newline charater "\n" indicates the end of the chunks.
   ;; One chunk is sent at a time.
   ;; Depends on OS, the max. data size for a data chunk is fixed, say 4kb for my PC.
-  ;; So data chunk is put in thread--data-buffer first.
+  ;; So data chunk is put in timp--data-buffer first.
   ;; And combine to form a complete data when the newline character is met.
   "Private function. Using it may cause serious problem."
   (if (string-match "\n" data (- (length data) 1))
       (progn
-        (nconc thread--data-buffer (list data))
-        (thread.socket.inbound.push thread--data-buffer)
-        (setq thread--data-buffer (list 0))) ;; Need to use (list 0) instead of '(0)
-    (nconc thread--data-buffer (list data))))
+        (nconc timp--data-buffer (list data))
+        (timp-socket-inbound-push timp--data-buffer)
+        (setq timp--data-buffer (list 0))) ;; Need to use (list 0) instead of '(0)
+    (nconc timp--data-buffer (list data))))
 
-
-(defun thread--LDlistener-receive-data (_proc data)
+(defun timp--LDlistener-receive-data (_proc data)
   
-  ;; It is same as thread--listener-receive-data expect
+  ;; It is same as timp--listener-receive-data expect
   ;; it only process large data (>4kb).
   "Private function. Using it may cause serious problem."
   (if (string-match "\n" data (- (length data) 1))
       (progn
-        (nconc thread--large-data-buffer (list data))
-        (thread.socket.inbound.push thread--large-data-buffer) 
-        (setq thread--large-data-buffer (list 0)) ;; Need to use (list 0) instead of '(0)
+        (nconc timp--large-data-buffer (list data))
+        (timp-socket-inbound-push timp--large-data-buffer) 
+        (setq timp--large-data-buffer (list 0)) ;; Need to use (list 0) instead of '(0)
         ;; Emit a singal to process next large data
-        (signal-emit 'thread--large-data-processed))
-    (nconc thread--large-data-buffer (list data))))
+        (signal-emit 'timp--large-data-processed))
+    (nconc timp--large-data-buffer (list data))))
 
 
-(defun thread--process-next-large-data ()
+(defun timp--process-next-large-data ()
 
   ;; If there is large data permission request quening up
   ;; Give permission to the next thread.
   "Private function. Using it may cause serious problem."
 
   ;; This large data has been processed, pop it.
-  (thread.socket.LDquene.pop)
+  (timp-socket-large-data-pop)
   
-  (when (thread.socket.LDquene.hasNext)
-    (let* ((thread (thread.socket.LDquene.first))
-           (sender (thread.getSender thread))
+  (when (timp-socket-large-data-has-next)
+    (let* ((thread (timp-socket-large-data-first))
+           (sender (timp-get-sender thread))
            packet)
       
       (unless (and sender (process-live-p sender))
-        (setq sender (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
+        (setq sender (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
                                           nil
                                           "localhost"
-                                          (thread.getPort thread)
+                                          (timp-get-port thread)
                                           'plain)))
       
-      (setq packet (make-instance 'thread.packet
-                                  :source (thread.getid thread)
+      (setq packet (make-instance 'timp-packet
+                                  :source (timp-get-id thread)
                                   :type 'ldr
                                   :data t))
       
       
       (process-send-string sender (concat (prin1-to-string packet) "\n"))
       
-      (thread--debug-print-packet packet :inbound nil)
+      (timp--debug-print-packet packet :inbound nil)
       
-      (if (thread.job.hasNext thread)
-          (thread.setSender thread sender)
+      (if (timp-has-next-job-p thread)
+          (timp-set-sender thread sender)
         (ignore-errors (delete-process sender))
-        (thread.setSender thread nil)))))
+        (timp-set-sender thread nil)))))
 
 
+(defun timp--process-inbound-data ()
 
-
-
-(defun thread--process-inbound-data ()
-
-  ;; Process a complete inbound data from thread.socket.
+  ;; Process a complete inbound data from timp-socket.
   ;; Distribute the job to responsible functions.
   "Private function. Using it may cause serious problem."
     
-  (let* ((job (thread.socket.inbound.pop))
+  (let* ((job (timp-socket-inbound-pop))
          (string (mapconcat 'identity (cdr job) ""))
          packet
          thread
@@ -387,224 +353,201 @@ or `thread.forceQuit'."
     (setq string (substring string 0 (- (length string) 1)))
     (setq packet (read string))
     
-    (when (thread.packet-p packet)
+    (when (timp-packet-p packet)
       (setq thread (cdr
-                    (assq (thread.packet.getSource packet) thread--record)))
+                    (assq (timp-packet-get-source packet) timp--record)))
 
       ;; debug
-      (thread--debug-print-packet packet :inbound t)
+      (timp--debug-print-packet packet :inbound t)
       
-      (setq packet-type (thread.packet.getType packet))
-      (when (and thread (process-live-p (thread.getProcess thread)))
+      (setq packet-type (timp-packet-get-type packet))
+      (when (and thread (process-live-p (timp-get-process thread)))
         ;; Distribute jobs
         (cond
          ((eq packet-type 'port)
-          (thread--port-packet-handler thread packet))
+          (timp--port-packet-handler thread packet))
          ((eq packet-type 'err)
-          (thread--err-packet-handler thread packet))
+          (timp--err-packet-handler thread packet))
          ((eq packet-type 'msg)
-          (thread--msg-packet-handler thread packet))
+          (timp--msg-packet-handler thread packet))
          ((eq packet-type 'quit)
-          (thread--quit-packet-handler thread))
+          (timp--quit-packet-handler thread))
          ((eq packet-type 'rpy)
-          (thread--rpy-packet-handler thread packet))
+          (timp--rpy-packet-handler thread packet))
          ((eq packet-type 'tgi)
-          (thread--tgi-packet-handler thread packet))
+          (timp--tgi-packet-handler thread packet))
          ((eq packet-type 'ldr)
-          (thread--ldr-packet-handler thread packet)))))))
+          (timp--ldr-packet-handler thread packet)))))))
 
-
-
-
-
-(defun thread--port-packet-handler (thread packet)
+(defun timp--port-packet-handler (thread packet)
   
   ;; Handling replied packet which is of port type.
   ;; Set port number of thread.
   "Private function. Using it may cause serious problem."
-  (let ((port (thread.packet.getData packet)))
-    (thread.setPort thread port)
-    (thread--do-next-after-process-job thread t)))
+  (let ((port (timp-packet-get-data packet)))
+    (timp-set-port thread port)
+    (timp--do-next-after-process-job thread t)))
 
-
-(defun thread--err-packet-handler (thread packet)
+(defun timp--err-packet-handler (thread packet)
 
   ;; Handling replied packet which is of err type.
   ;; Calling appropiate function to handle error.
   "Private function. Using it may cause serious problem."
   
-  (let ((error-handler (thread.packet.getErrorHandler packet))
-        (arg (thread.packet.getData packet)))
+  (let ((error-handler (timp-packet-get-error-handler packet))
+        (arg (timp-packet-get-data packet)))
     
     (when error-handler
-     (ignore-errors (apply error-handler (list arg)))))
-  (thread--do-next-after-process-job thread))
+     (ignore-errors (apply error-handler arg))))
+  (timp--do-next-after-process-job thread))
 
-
-(defun thread--msg-packet-handler (thread packet)
+(defun timp--msg-packet-handler (thread packet)
   
   ;; Handling replied packet which is of msg type.
   ;; Output message to *thread log* if it is in debug mode.
   ;; Output message directly if it is not in debug mode.
   "Private function. Using it may cause serious problem."
   
-  (let ((data (thread.packet.getData packet)))
-    (when thread-debug-p
-        (thread-debug-print (format "thread%d~ %s\n" (thread.getid thread) data)))
+  (let ((data (timp-packet-get-data packet)))
+    (when timp-debug-p
+        (timp-debug-print (format "thread%d~ %s\n" (timp-get-id thread) data)))
     (message data)))
 
-
-(defun thread--quit-packet-handler (thread)
+(defun timp--quit-packet-handler (thread)
 
   ;; Handling replied packet which is of quit type.
   ;; Kill the process associated with THREAD.
   ;; It can also use to force quit a thread.
   "Private function. Using it may cause serious problem."
-  (ignore-errors (delete-process (thread.getSender thread)))
-  (ignore-errors (delete-process (thread.getProcess thread)))
-  (setf (cdr (assoc (thread.getid thread) thread--record)) nil))
+  (ignore-errors (delete-process (timp-get-sender thread)))
+  (ignore-errors (delete-process (timp-get-process thread)))
+  (setf (cdr (assoc (timp-get-id thread) timp--record)) nil))
 
-
-(defun thread--rpy-packet-handler (thread packet)
+(defun timp--rpy-packet-handler (thread packet)
 
   ;; Handling replied packet which is of msg type.
   ;; Calling appropiate function to handle the reply.
   "Private function. Using it may cause serious problem."
 
-  (let ((reply-func (thread.packet.getReply packet))
-        (arg (thread.packet.getData packet)))
+  (let ((reply-func (timp-packet-get-reply packet))
+        (arg (timp-packet-get-data packet)))
     (when reply-func
       (ignore-errors (apply reply-func arg))))
-  (thread--do-next-after-process-job thread))
+  (timp--do-next-after-process-job thread))
 
-
-
-(defun thread--tgi-packet-handler (_thread packet)
+(defun timp--tgi-packet-handler (_thread packet)
 
   ;; Handle instruction generated by child thread.
   ;; Calling appropiate function to handle the instruction.
   "Private function. Using it may cause serious problem."
 
-  (let ((instruction (thread.packet.getReply packet))
-        (arg (thread.packet.getData packet)))
+  (let ((instruction (timp-packet-get-reply packet))
+        (arg (timp-packet-get-data packet)))
     (ignore-errors (apply instruction arg)))
   ;; Instruction generated by child thread does not count as reply
   ;; It should not change either the quene state or ready state of the thread.
   )
 
-
-
-(defun thread--ldr-packet-handler (thread packet)
+(defun timp--ldr-packet-handler (thread packet)
   
   ;; If there is no other large data request, process it.
-  ;; Otherewise, quene up in thread.socket.LDquene
+  ;; Otherewise, quene up in timp-socket.LDquene
   "Private function. Using it may cause serious problem."
-  ;; Push the thread to LDquene of thread.socket
-  (thread.socket.LDquene.push thread)
+  ;; Push the thread to large-data of timp-socket
+  (timp-socket-large-data-push thread)
   
-  (when (eq (thread.socket.LDquene.first) thread)
-      (let ((sender (thread.getSender thread)))
+  (when (eq (timp-socket-large-data-first) thread)
+      (let ((sender (timp-get-sender thread)))
         (unless (and sender (process-live-p sender))
           (while (null
                   (setq sender (ignore-errors
-                                 (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
+                                 (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
                                                       nil
                                                       "localhost"
-                                                      (thread.getPort thread)
+                                                      (timp-get-port thread)
                                                       'plain))))))
         (process-send-string sender (concat (prin1-to-string packet) "\n"))
         
-        (thread--debug-print-packet packet :inbound nil)
+        (timp--debug-print-packet packet :inbound nil)
         
-        (if (thread.job.hasNext thread)
-            (thread.setSender thread sender)
+        (if (timp-has-next-job-p thread)
+            (timp-set-sender thread sender)
           (ignore-errors (delete-process sender))
-          (thread.setSender thread nil)))))
+          (timp-set-sender thread nil)))))
 
-
-
-
-(defun thread--do-next-after-process-job (thread &optional notQuit)
+(defun timp--do-next-after-process-job (thread &optional notQuit)
   
   ;; Perform the next action after getting a reply from the child thread
   ;; and the reply has been processed.
   "Private function. Using it may cause serious problem."
 
-  (thread.clrCurrentJob thread)
-  (if (thread.job.hasNext thread)
-      (if (thread.socket.isInBuffer thread)
+  (timp-clear-current-job thread)
+  (if (timp-has-next-job-p thread)
+      (if (timp-socket-job-in-buffer-p thread)
           (progn
-            (thread.socket.buffer.remove thread)
-            (thread.pushToOutbound thread))
-        (thread.pushToOutbound thread))
-    (unless (or (thread.isPersist thread) notQuit)
-      (thread.quit thread))))
-  
-  
+            (timp-socket-remove-from-buffer thread)
+            (timp--push-to-outbound thread))
+        (timp--push-to-outbound thread))
+    (unless (or (timp-persist-p thread) notQuit)
+      (timp-quit thread))))
 
 
-
-
-
-
- 
-(defclass thread (fifo)
+(defclass timp (fifo-class)
   ((id
     :initarg :id
     :type integer
-    :accessor thread.id
+    :accessor timp-id
     :protection :private)
    (process
     :initarg :process
     :type process
-    :accessor thread.process
+    :accessor timp-process
     :protection :private)
    (sender
     :type process
-    :accessor thread.sender
+    :accessor timp-sender
     :protection :private)
    (port
     :initform nil
     :initarg :port
     ;; port type is checked by setter
-    :accessor thread.port
+    :accessor timp-port
     :protection :private)
    (persist
     :initform nil
     :initarg :persist
     :type boolean
-    :accessor thread.persist
+    :accessor timp-perisist
     :protection :private)
    (quit-warn
     :initform nil
     :initarg :quit-warn
     :type (or null string)
-    :accessor thread.quitWarn
+    :accessor timp-quit-warn
     :protection :private)
    (job
     :initform nil
-    :accessor thread.job
+    :accessor timp-job
     :protection :private)
    (current-job
     :initform nil
-    :accessor thread.currentJob
+    :accessor timp-current-job
     :protection :private)
    (quene
     :initform nil
     :type boolean
-    :accessor thread.quene
+    :accessor timp-quene
     :protection :private)
    (load-path
     :initform nil
     :type boolean
-    :accessor thread.loadPath
+    :accessor timp-load-path
     :protection :private))
 
-   "Thread class. `thread.get' is the only vaild
+   "Timp (Thread) class. `timp-get' is the only vaild
 way to create a thread instance.")
 
-
-(defmethod initialize-instance :before ((_obj thread) &rest args)
+(defmethod initialize-instance :before ((_obj timp) &rest args)
   ;; Constructor. Make sure name and process get initialized.
   "Private function. Using it may cause serious problem."
   (unless (plist-get (car args) ':id)
@@ -612,179 +555,167 @@ way to create a thread instance.")
   (unless (plist-get (car args) ':process)
     (error "Slot :process must be initialized.")))
 
-
-(defmethod thread.getid ((obj thread))
+(defmethod timp-get-id ((obj timp))
   "Private function.Private function. Using it may cause serious problem."
-  ;; Get the thread id (assq (car data) thread--record)
-  (thread.id obj))
+  ;; Get the thread id (assq (car data) timp--record)
+  (timp-id obj))
 
-(defmethod thread.getProcess ((obj thread))
+(defmethod timp-get-process ((obj timp))
   "Private function. Using it may cause serious problem."
   ;; Get the thread process
-  (thread.process obj))
+  (timp-process obj))
 
-(defmethod thread.getSender ((obj thread))
+(defmethod timp-get-sender ((obj timp))
   "Private function. Using it may cause serious problem."
   ;; Get the thread sender
-  (thread.sender obj))
+  (timp-sender obj))
 
-(defmethod thread.setSender ((obj thread) sender)
+(defmethod timp-set-sender ((obj timp) sender)
   "Private function. Using it may cause serious problem."
   ;; Set the thread sender
-  (setf (thread.sender obj) sender))
+  (setf (timp-sender obj) sender))
 
-(defmethod thread.setPort ((obj thread) port)
+(defmethod timp-set-port ((obj timp) port)
   "Private function. Using it may cause serious problem."
   ;; Set the thread port
   (unless (and (integerp port) (> port 0) (<= port 65535))
     (error "Invalid port"))
-   (setf (thread.port obj) port))
+   (setf (timp-port obj) port))
 
-(defmethod thread.getPort ((obj thread))
+(defmethod timp-get-port ((obj timp))
   "Private function. Using it may cause serious problem."
   ;; Get the thread port
-  (thread.port obj))
+  (timp-port obj))
 
-(defmethod thread.isPersist ((obj thread))
+(defmethod timp-persist-p ((obj timp))
   "Private function. Using it may cause serious problem."
   ;; Return whether the thread should be persist
-  (thread.persist obj))
+  (timp-perisist obj))
 
-(defmethod thread.getQuitWarn ((obj thread))
+(defmethod timp-get-quit-warn ((obj timp))
   "Private function. Using it may cause serious problem."
   ;; Return the quit warning of the thread.
-  (thread.quitWarn obj))
+  (timp-quit-warn obj))
 
-(defmethod thread.getJob ((obj thread))
+(defmethod timp-get-job ((obj timp))
   ;; Get job list from thread
   "Private function. Using it may cause serious problem."
-  (thread.job obj))
+  (timp-job obj))
 
-(defmethod thread.job.hasNext ((obj thread))
+(defmethod timp-has-next-job-p ((obj timp))
   ;; Whether there is job
   "Private function. Using it may cause serious problem."
-  (when (thread.getJob obj) t))
+  (when (timp-get-job obj) t))
 
-(defmethod thread.pushJob ((obj thread) packet)
+(defmethod timp-push-job ((obj timp) packet)
   ;; Push job to thread's job quene
   "Private function. Using it may cause serious problem."
-  (fifo-push obj 'job packet))
+  (fifo-class-push obj 'job packet))
 
-(defmethod thread.popJob ((obj thread))
-  ;; Pop job from thread's job quene and return the job's thread.packet.
+(defmethod timp-pop-job ((obj timp))
+  ;; Pop job from thread's job quene and return the job's timp-packet.
   "Private function. Using it may cause serious problem."
-  (fifo-pop obj 'job))
+  (fifo-class-pop obj 'job))
 
-(defmethod thread.getCurrentJob ((obj thread))
+(defmethod timp-get-current-job ((obj timp))
   ;; Get the current job from the thread
   "Private function. Using it may cause serious problem."
-  (thread.currentJob obj))
+  (timp-current-job obj))
 
-(defmethod thread.setCurrentJob ((obj thread) packet)
+(defmethod timp-set-current-job ((obj timp) packet)
   ;; Set the current job to thread
   "Private function. Using it may cause serious problem."
-  (setf (thread.currentJob obj) packet))
+  (setf (timp-current-job obj) packet))
 
-(defmethod thread.clrCurrentJob ((obj thread))
+(defmethod timp-clear-current-job ((obj timp))
   ;; Remove the current job
   "Private function. Using it may cause serious problem."
-  (setf (thread.currentJob obj) nil))
+  (setf (timp-current-job obj) nil))
 
-(defmethod thread.isReady ((obj thread))
+(defmethod timp-ready-p ((obj timp))
   "Private function. Using it may cause serious problem."
   ;; Whether the thread is ready to send next job.
   ;; No current job means ready
-  (unless (thread.currentJob obj) t))
+  (unless (timp-current-job obj) t))
 
-(defmethod thread.isQuened ((obj thread))
-  ;; Whether thread is quened in thread.socket
+(defmethod timp-quened-p ((obj timp))
+  ;; Whether thread is quened in timp-socket
   "Private function. Using it may cause serious problem."
-  (thread.quene obj))
+  (timp-quene obj))
 
-(defmethod thread.setQuene ((obj thread) quene)
+(defmethod timp-set-quene ((obj timp) quene)
   ;; quene is either t or nil
   "Private function. Using it may cause serious problem."
-  (setf (thread.quene obj) quene))
+  (setf (timp-quene obj) quene))
 
-(defmethod thread.isPathReady ((obj thread))
+(defmethod timp-load-path-ready-p ((obj timp))
   ;; Return whether load path is set
   "Private function. Using it may cause serious problem."
-  (thread.loadPath obj))
+  (timp-load-path obj))
 
-(defmethod thread.flagPathReady ((obj thread))
+(defmethod timp-flag-load-path-ready ((obj timp))
   ;; Return whether load path is set
   "Private function. Using it may cause serious problem."
-  (setf (thread.loadPath obj) t))
+  (setf (timp-load-path obj) t))
 
 
-
-
-(defun thread.validate (object)
+(defun timp-validate (object)
 
   "Validate whether OBJECT is a thread and is valid.
 Return t for valid OBJECT."
 
-  (if (and (thread-p object)
-           (processp (thread.getProcess object))
-           (process-live-p (thread.getProcess object)))
+  (if (and (timp-p object)
+           (processp (timp-get-process object))
+           (process-live-p (timp-get-process object)))
       t
-    (when (thread-p object)
-      (thread.forceQuit object))
+    (when (timp-p object)
+      (timp-force-quit object))
     nil))
 
-
-(defmethod thread.quit ((obj thread))
+(defmethod timp-quit ((obj timp))
   
   "Send a quit signal to child Thread to perform safe quit action."
 
-  (when (process-live-p (thread.getProcess obj))
-    (thread.pushJob obj (make-instance 'thread.packet
-                                       :source (thread.getid obj)
+  (when (process-live-p (timp-get-process obj))
+    (timp-push-job obj (make-instance 'timp-packet
+                                       :source (timp-get-id obj)
                                        :type 'quit
                                        :data t))
-    (unless (thread.isQuened obj)
-      (thread.pushToOutbound obj))))
+    (unless (timp-quened-p obj)
+      (timp--push-to-outbound obj))))
 
-(defmethod thread.forceQuit ((obj thread))
+(defmethod timp-force-quit ((obj timp))
 
   "Forced quit a THREAD without letting the thread to stop its job kindly."
 
-  (thread--quit-packet-handler obj))
+  (timp--quit-packet-handler obj))
 
+(defmethod timp--send-exec ((obj timp) func unique reply-func error-handler quit-warn &rest arg)
 
-
-
-
-
-(defmethod thread--send-exec ((obj thread) func unique reply-func error-handler quit-warn &rest arg)
-
-  "Not supposed to be called directly. Use `thread.send.exec' instead."
+  "Not supposed to be called directly. Use `timp-send-exec' instead."
   
-  (when (process-live-p (thread.getProcess obj))
-    (let ((jobs (thread.getJob obj))
-          (packet (make-instance 'thread.packet
-                                       :source (thread.getid obj)
+  (when (process-live-p (timp-get-process obj))
+    (let ((jobs (timp-get-job obj))
+          (packet (make-instance 'timp-packet
+                                       :source (timp-get-id obj)
                                        :type 'exe
                                        :data (cons func arg)
                                        :reply reply-func
                                        :error-handler error-handler
                                        :quit-warn quit-warn)))
-      (unless (and unique (or (member packet jobs) (equal (thread.getCurrentJob obj) packet)))
-        (thread.pushJob obj packet)
+      (unless (and unique (or (member packet jobs) (equal (timp-get-current-job obj) packet)))
+        (timp-push-job obj packet)
         
-        (unless (thread.isQuened obj)
-          (thread.pushToOutbound obj))))))
+        (unless (timp-quened-p obj)
+          (timp--push-to-outbound obj))))))
 
+(cl-defmacro timp-send-exec (timp func &rest arg &key unique reply-func error-handler quit-warn &allow-other-keys)
 
-
-
-(cl-defmacro thread.send.exec (thread func &rest arg &key unique reply-func error-handler quit-warn &allow-other-keys)
-
-  ;; Just a wrapper to thread--send-exec
+  ;; Just a wrapper to timp--send-exec
   ;; so that arguments can be supplied in a more elegant way.
   "Send single instruction to child thread.
 
-THREAD is a thread object which can be aquired by `thread.get'.
+TIMP is a thread object which can be aquired by `timp-get'.
 FUNC is the symbol of function which you want to execute in child thread.
 ARGS are the arguments supplied to FUNC.
 
@@ -824,38 +755,35 @@ The instruction will be executed by `apply' in the child thread."
           (push elt rest))))
     (setq rest (nreverse rest))
 
-    `(thread--send-exec ,thread ,func ,unique ,reply-func ,error-handler ,quit-warn ,@rest)))
+    `(timp--send-exec ,timp ,func ,unique ,reply-func ,error-handler ,quit-warn ,@rest)))
 
+(defmethod timp--send-code ((obj timp) code unique reply-func error-handler quit-warn)
 
+  "Not supposed to be called directly. Use `timp-send-code' instead."
 
-
-(defmethod thread--send-code ((obj thread) code unique reply-func error-handler quit-warn)
-
-  "Not supposed to be called directly. Use `thread.send.code' instead."
-
-  (when (process-live-p (thread.getProcess obj))
-    (let ((jobs (thread.getJob obj))
-          (packet (make-instance 'thread.packet
-                                       :source (thread.getid obj)
+  (when (process-live-p (timp-get-process obj))
+    (let ((jobs (timp-get-job obj))
+          (packet (make-instance 'timp-packet
+                                       :source (timp-get-id obj)
                                        :type 'code
                                        :data code
                                        :reply reply-func
                                        :error-handler error-handler
                                        :quit-warn quit-warn)))
-      (unless (and unique (or (member packet jobs) (equal (thread.getCurrentJob obj) packet)))
-        (thread.pushJob obj packet)
+      (unless (and unique (or (member packet jobs) (equal (timp-get-current-job obj) packet)))
+        (timp-push-job obj packet)
         
-        (unless (thread.isQuened obj)
-          (thread.pushToOutbound obj))))))
+        (unless (timp-quened-p obj)
+          (timp--push-to-outbound obj))))))
 
 
-(cl-defmacro thread.send.code (thread &key code unique reply-func error-handler quit-warn)
+(cl-defmacro timp-send-code (timp &key code unique reply-func error-handler quit-warn)
 
-  ;; Just a wrapper to thread--send-code
+  ;; Just a wrapper to timp--send-code
   ;; so that arguments can be supplied in a more elegant way.
   "Evaluate CODE in child thread.
 
-THREAD is a thread object which can be aquired by `thread.get'.
+timp is a thread object which can be aquired by `timp-get'.
 CODE is the code being evaluated at child thread.
 
 REPLY-FUNC is the function to be called when excution of FUNC returned a
@@ -867,179 +795,167 @@ in the child thread during excuting of instruction.
 The ERROR-HANDER function will be called with the error message as argument.
 You can ignore it if you don't handle the error."
 
-  `(thread--send-code ,thread ,code ,unique ,reply-func ,error-handler ,quit-warn))
+  `(timp--send-code ,timp ,code ,unique ,reply-func ,error-handler ,quit-warn))
 
-
-(defmethod thread.requirePackage ((obj thread) &rest packets)
+(defmethod timp-require-package ((obj timp) &rest packets)
 
   "Require PACKETS in child threads.
 This function helps managing load-path in child threads."
 
-  (unless (thread.isPathReady obj)
-    (thread.send.exec obj 'threadS-set-load-path 
-                      :error-handler 'thread-debug-print
+  (unless (timp-load-path-ready-p obj)
+    (timp-send-exec obj 'timp-server-set-load-path 
+                      :error-handler 'timp-debug-print
                       load-path)
-    (thread.flagPathReady obj))
+    (timp-flag-load-path-ready obj))
 
-  (thread.send.exec obj 'threadS-require-packet packets
-                    :error-handler 'thread-debug-print))
+  (timp-send-exec obj 'timp-server-require-packet packets
+                  :error-handler 'timp-debug-print))
 
-
-
-
-(defun thread-debug-print (object)
+(defun timp-debug-print (object)
 
   "Print string to thread log."
 
   (unless (stringp object)
     (setq object (prin1-to-string object)))
   
-  (with-current-buffer (get-buffer-create thread-debug-buffer-name)
+  (with-current-buffer (get-buffer-create timp-debug-buffer-name)
           (setq buffer-read-only nil)
           (goto-char (point-max))
           (insert (format-time-string "%Y%m%d - %I:%M:%S%p $ ")
                   (format "%s\n" object))
           (setq buffer-read-only t))
-  (when (eq (current-buffer) (get-buffer thread-debug-buffer-name))
+  (when (eq (current-buffer) (get-buffer timp-debug-buffer-name))
     (recenter -3)))
 
 
+(defun timp--process-outbound-data ()
 
-
-
-
-
-(defun thread--process-outbound-data ()
-
-  ;; Process the first thread in the outbound of thread.socket
+  ;; Process the first thread in the outbound of timp-socket
 
   "Private function. Using it may cause serious problem."
 
-  (let ((thread (thread.popFromOutbound)))
-    ;; If ready do job, if not ready requene in outbound of thread.socket
+  (let ((thread (timp--pop-from-outbound)))
+    ;; If ready do job, if not ready requene in outbound of timp-socket
     
-    (if (thread.isReady thread)
+    (if (timp-ready-p thread)
         ;; Check if process alive, if not, release if from thread record
-        (if (process-live-p (thread.getProcess thread))
-              (let ((sender (thread.getSender thread))
+        (if (process-live-p (timp-get-process thread))
+              (let ((sender (timp-get-sender thread))
                     packet)
                   
                 ;; Make a network stream
                 (unless (and sender (process-live-p sender))
                   (setq sender 
                         (ignore-errors
-                          (open-network-stream (concat "thread" (number-to-string (thread.getid thread)) " - sender")
+                          (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
                                                nil
                                                "localhost"
-                                               (thread.getPort thread)
+                                               (timp-get-port thread)
                                                'plain))))
                 
                 (when sender
                   ;; Send job
-                  (setq packet (thread.popJob thread))
+                  (setq packet (timp-pop-job thread))
                   (process-send-string sender
                                        (concat (prin1-to-string packet) "\n"))
-                  (thread.setCurrentJob thread packet)
+                  (timp-set-current-job thread packet)
 
                   ;; debug
-                  (thread--debug-print-packet packet :inbound nil)
+                  (timp--debug-print-packet packet :inbound nil)
                   
-                  (if (thread.job.hasNext thread)
+                  (if (timp-has-next-job-p thread)
                       (progn
                         ;; Still has job, keep the sender, quene the thread again
-                        (thread.setSender thread sender)
-                        (thread.pushToOutbound thread))
+                        (timp-set-sender thread sender)
+                        (timp--push-to-outbound thread))
                     ;; No job, close the network stream
                     (ignore-errors (delete-process sender))
-                    (thread.setSender thread nil))))
+                    (timp-set-sender thread nil))))
           
           ;; Process not alive, delete form thread record
-          (thread.forceQuit thread))
+          (timp-force-quit thread))
 
       ;; Thread is not ready, put to buffer
-      (thread.pushToOutboundBuffer thread))))
+      (timp--push-to-outbound-buffer thread))))
 
 
-
-
-
-(defun thread--kill-emacs (orig &optional arg count)
+(defun timp--kill-emacs (orig &optional arg count)
 
   ;; This function is supposed to be adviced
   ;; :around kill-emacs and save-buffers-kill-emacs.
   ;; When ~kill-emacs~ is invoked, attempt to close all threads safely
   ;; with certain period of time.
   ;; By default, it is 5 seconds defined customly in
-  ;; thread-kill-emacs-close-thread-delay.
+  ;; timp-kill-emacs-close-thread-delay.
   "Private function. Using it may cause serious problem."
 
   (let (threads)
-    (dolist (record thread--record)
+    (dolist (record timp--record)
       (when (cdr record)
         (push (cdr record) threads)))
 
     (if (and threads
              (or (null count)
-                 (< (* count 0.3) thread-kill-emacs-close-thread-delay)))
+                 (< (* count 0.3) timp-kill-emacs-close-thread-delay)))
         (progn
-          (message "%d thread%s is running. Try to quit %s safely.
+          (when (and count (= (% count 3) 0))
+           (message "%d thread%s is running. Try to quit %s safely.
 Emacs will be quit within %d seconds."
                (length threads)
                (if (> (length threads) 1) "s" "")
                (if (> (length threads) 1) "them" "it")
                (or (and count
                         (ceiling
-                         (- thread-kill-emacs-close-thread-delay
+                         (- timp-kill-emacs-close-thread-delay
                            (* count 0.3))))
-                    thread-kill-emacs-close-thread-delay))
-
+                   timp-kill-emacs-close-thread-delay)))
+          
           (unless count
             ;; Try to safe quit all threads
             (dolist (thread threads)
-              (thread.quit thread))
+              (timp-quit thread))
             
             ;; Don't block the ui when closing threads
             ;; Update the close thread progress in
-            ;; thread--kill-emacs-reporter
-            (signal-connect :signal 'thread--kill-emacs-signal
-                            :worker 'thread--kill-emacs))
+            ;; timp--kill-emacs-reporter
+            (signal-connect :signal 'timp--kill-emacs-signal
+                            :worker 'timp--kill-emacs))
           ;; Call itself recusively 
-          (signal-emit 'thread--kill-emacs-signal
+          (signal-emit 'timp--kill-emacs-signal
                        :delay 0.3
                        :arg (list orig arg (or (and (null count) 1) (1+ count)))))
 
       ;; If no threads, close happily.
       ;; If still has threads, froce close.
-      (signal-disconnect 'thread--kill-emacs-signal 'thread--kill-emacs)
+      (signal-disconnect 'timp--kill-emacs-signal 'timp--kill-emacs)
 
       (let (stop-quit)
         ;; Force quit any threads without warning
         ;; Ask for user confirm if there is warning
         (dolist (thread threads)
           (if (or
-               (and (thread.getCurrentJob thread) (thread.packet.getQuitWarn (thread.getCurrentJob thread)))
-               (thread.getQuitWarn thread))
+               (and (timp-get-current-job thread) (timp-packet-get-quit-warn (timp-get-current-job thread)))
+               (timp-get-quit-warn thread))
               (if (yes-or-no-p (concat (or
-                                        (thread.packet.getQuitWarn (thread.getCurrentJob thread))
-                                        (thread.getQuitWarn thread))
+                                        (timp-packet-get-quit-warn (timp-get-current-job thread))
+                                        (timp-get-quit-warn thread))
                                        "\nDo you really want to quit?"))
-                  (thread.forceQuit thread)
+                  (timp-force-quit thread)
                 (setq stop-quit t))
-            (thread.forceQuit thread)))
+            (timp-force-quit thread)))
         
         (if stop-quit
             (message "User cancelled kill-emacs action.")
-          (ignore-errors (delete-process thread--data-listener))
-          (ignore-errors (delete-process thread--large-data-listener))
+          (ignore-errors (delete-process timp--data-listener))
+          (ignore-errors (delete-process timp--large-data-listener))
           ;; Close the network stream created by child threads.
           (dolist (process (process-list))
             (when (string-prefix-p "thread" (process-name process))
               (ignore-errors (delete-process process))))
           (apply orig (list arg)))))))
 
+(advice-add 'kill-emacs :around 'timp--kill-emacs)
+(advice-add 'save-buffers-kill-emacs :around 'timp--kill-emacs)
 
-(advice-add 'kill-emacs :around 'thread--kill-emacs)
-(advice-add 'save-buffers-kill-emacs :around 'thread--kill-emacs)
-
-(provide 'thread)
-;;; thread.el ends here
+(provide 'timp)
+;;; timp.el ends here
