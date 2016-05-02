@@ -355,6 +355,14 @@ if they want to quit safely."
   (signal-emitb timp-server-quit-signal)
   (timp-server-send-quit))
 
+(defun timp-server-sleep-for (second)
+  "To pause the `timp-server' for number of SECOND.
+SECONDS may be a floating-point value, meaning that you can wait for a
+fraction of a second."
+  (accept-process-output nil second))
+
+(defalias 'timp-sleep-for 'timp-server-sleep-for)
+
 (defun timp-server-do-nothing ()
   "Seriously, this is a function doing nothing.
 If you can read this documentation, you are most possibily looking at
