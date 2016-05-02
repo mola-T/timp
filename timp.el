@@ -27,8 +27,11 @@
 ;;
 ;;; Commentary:
 ;;
-;; Thread is an emacs multithreading library.
-;; See https://github.com/mola-T/timp for introduction.
+;; Timp is a multithreading library.
+;; It provides 'threads' which can manage jobs in the background
+;; without blocking the main Emacs ui.
+;; With timp, you can even run database or server in the background.
+;; See https://github.com/mola-T/timp for more information.
 ;;
 ;;; code:
 
@@ -146,10 +149,10 @@ This is for debug purpose."
   (when (or (and timp--debug-print-inbound-packet inbound)
             (and timp--debug-print-outbound-packet (null inbound)))
     (timp-debug-print
-      (format "thread%d~%s~~ %s"
-              (timp-packet-get-source packet)
-              (or (and inbound "IN") "OUT")
-              (prin1-to-string packet)))))
+     (format "thread%d~%s~~ %s"
+             (timp-packet-get-source packet)
+             (or (and inbound "IN") "OUT")
+             (prin1-to-string packet)))))
 
 (defcustom timp-kill-emacs-close-thread-delay 5
   "The time waited for threads to quit safely before closing emacs.
@@ -342,7 +345,7 @@ or `timp-force-quit'."
   ;; Process a complete inbound data from timp-socket.
   ;; Distribute the job to responsible functions.
   "Private function. Using it may cause serious problem."
-    
+  
   (let* ((job (timp-socket-inbound-pop))
          (string (mapconcat 'identity (cdr job) ""))
          packet
@@ -398,7 +401,7 @@ or `timp-force-quit'."
         (arg (timp-packet-get-data packet)))
     
     (when error-handler
-     (ignore-errors (apply error-handler arg))))
+      (ignore-errors (apply error-handler arg))))
   (timp--do-next-after-process-job thread))
 
 (defun timp--msg-packet-handler (thread packet)
@@ -410,7 +413,7 @@ or `timp-force-quit'."
   
   (let ((data (timp-packet-get-data packet)))
     (when timp-debug-p
-        (timp-debug-print (format "thread%d~ %s\n" (timp-get-id thread) data)))
+      (timp-debug-print (format "thread%d~ %s\n" (timp-get-id thread) data)))
     (message data)))
 
 (defun timp--quit-packet-handler (thread)
@@ -419,6 +422,7 @@ or `timp-force-quit'."
   ;; Kill the process associated with THREAD.
   ;; It can also use to force quit a thread.
   "Private function. Using it may cause serious problem."
+  
   (ignore-errors (delete-process (timp-get-sender thread)))
   (ignore-errors (delete-process (timp-get-process thread)))
   (setf (cdr (assoc (timp-get-id thread) timp--record)) nil))
@@ -457,23 +461,23 @@ or `timp-force-quit'."
   (timp-socket-large-data-push thread)
   
   (when (eq (timp-socket-large-data-first) thread)
-      (let ((sender (timp-get-sender thread)))
-        (unless (and sender (process-live-p sender))
-          (while (null
-                  (setq sender (ignore-errors
-                                 (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
-                                                      nil
-                                                      "localhost"
-                                                      (timp-get-port thread)
-                                                      'plain))))))
-        (process-send-string sender (concat (prin1-to-string packet) "\n"))
-        
-        (timp--debug-print-packet packet :inbound nil)
-        
-        (if (timp-has-next-job-p thread)
-            (timp-set-sender thread sender)
-          (ignore-errors (delete-process sender))
-          (timp-set-sender thread nil)))))
+    (let ((sender (timp-get-sender thread)))
+      (unless (and sender (process-live-p sender))
+        (while (null
+                (setq sender (ignore-errors
+                               (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
+                                                    nil
+                                                    "localhost"
+                                                    (timp-get-port thread)
+                                                    'plain))))))
+      (process-send-string sender (concat (prin1-to-string packet) "\n"))
+      
+      (timp--debug-print-packet packet :inbound nil)
+      
+      (if (timp-has-next-job-p thread)
+          (timp-set-sender thread sender)
+        (ignore-errors (delete-process sender))
+        (timp-set-sender thread nil)))))
 
 (defun timp--do-next-after-process-job (thread &optional notQuit)
   
@@ -544,7 +548,7 @@ or `timp-force-quit'."
     :accessor timp-load-path
     :protection :private))
 
-   "Timp (Thread) class. `timp-get' is the only vaild
+  "Timp (Thread) class. `timp-get' is the only vaild
 way to create a thread instance.")
 
 (defmethod initialize-instance :before ((_obj timp) &rest args)
@@ -580,7 +584,7 @@ way to create a thread instance.")
   ;; Set the thread port
   (unless (and (integerp port) (> port 0) (<= port 65535))
     (error "Invalid port"))
-   (setf (timp-port obj) port))
+  (setf (timp-port obj) port))
 
 (defmethod timp-get-port ((obj timp))
   "Private function. Using it may cause serious problem."
@@ -678,9 +682,9 @@ Return t for valid OBJECT."
 
   (when (process-live-p (timp-get-process obj))
     (timp-push-job obj (make-instance 'timp-packet
-                                       :source (timp-get-id obj)
-                                       :type 'quit
-                                       :data t))
+                                      :source (timp-get-id obj)
+                                      :type 'quit
+                                      :data t))
     (unless (timp-quened-p obj)
       (timp--push-to-outbound obj))))
 
@@ -697,12 +701,12 @@ Return t for valid OBJECT."
   (when (process-live-p (timp-get-process obj))
     (let ((jobs (timp-get-job obj))
           (packet (make-instance 'timp-packet
-                                       :source (timp-get-id obj)
-                                       :type 'exe
-                                       :data (cons func arg)
-                                       :reply reply-func
-                                       :error-handler error-handler
-                                       :quit-warn quit-warn)))
+                                 :source (timp-get-id obj)
+                                 :type 'exe
+                                 :data (cons func arg)
+                                 :reply reply-func
+                                 :error-handler error-handler
+                                 :quit-warn quit-warn)))
       (unless (and unique (or (member packet jobs) (equal (timp-get-current-job obj) packet)))
         (timp-push-job obj packet)
         
@@ -764,12 +768,12 @@ The instruction will be executed by `apply' in the child thread."
   (when (process-live-p (timp-get-process obj))
     (let ((jobs (timp-get-job obj))
           (packet (make-instance 'timp-packet
-                                       :source (timp-get-id obj)
-                                       :type 'code
-                                       :data code
-                                       :reply reply-func
-                                       :error-handler error-handler
-                                       :quit-warn quit-warn)))
+                                 :source (timp-get-id obj)
+                                 :type 'code
+                                 :data code
+                                 :reply reply-func
+                                 :error-handler error-handler
+                                 :quit-warn quit-warn)))
       (unless (and unique (or (member packet jobs) (equal (timp-get-current-job obj) packet)))
         (timp-push-job obj packet)
         
@@ -804,8 +808,8 @@ This function helps managing load-path in child threads."
 
   (unless (timp-load-path-ready-p obj)
     (timp-send-exec obj 'timp-server-set-load-path 
-                      :error-handler 'timp-debug-print
-                      load-path)
+                    :error-handler 'timp-debug-print
+                    load-path)
     (timp-flag-load-path-ready obj))
 
   (timp-send-exec obj 'timp-server-require-packet packets
@@ -819,11 +823,11 @@ This function helps managing load-path in child threads."
     (setq object (prin1-to-string object)))
   
   (with-current-buffer (get-buffer-create timp-debug-buffer-name)
-          (setq buffer-read-only nil)
-          (goto-char (point-max))
-          (insert (format-time-string "%Y%m%d - %I:%M:%S%p $ ")
-                  (format "%s\n" object))
-          (setq buffer-read-only t))
+    (setq buffer-read-only nil)
+    (goto-char (point-max))
+    (insert (format-time-string "%Y%m%d - %I:%M:%S%p $ ")
+            (format "%s\n" object))
+    (setq buffer-read-only t))
   (when (eq (current-buffer) (get-buffer timp-debug-buffer-name))
     (recenter -3)))
 
@@ -840,37 +844,37 @@ This function helps managing load-path in child threads."
     (if (timp-ready-p thread)
         ;; Check if process alive, if not, release if from thread record
         (if (process-live-p (timp-get-process thread))
-              (let ((sender (timp-get-sender thread))
-                    packet)
-                  
-                ;; Make a network stream
-                (unless (and sender (process-live-p sender))
-                  (setq sender 
-                        (ignore-errors
-                          (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
-                                               nil
-                                               "localhost"
-                                               (timp-get-port thread)
-                                               'plain))))
-                
-                (when sender
-                  ;; Send job
-                  (setq packet (timp-pop-job thread))
-                  (process-send-string sender
-                                       (concat (prin1-to-string packet) "\n"))
-                  (timp-set-current-job thread packet)
+            (let ((sender (timp-get-sender thread))
+                  packet)
+              
+              ;; Make a network stream
+              (unless (and sender (process-live-p sender))
+                (setq sender 
+                      (ignore-errors
+                        (open-network-stream (concat "thread" (number-to-string (timp-get-id thread)) " - sender")
+                                             nil
+                                             "localhost"
+                                             (timp-get-port thread)
+                                             'plain))))
+              
+              (when sender
+                ;; Send job
+                (setq packet (timp-pop-job thread))
+                (process-send-string sender
+                                     (concat (prin1-to-string packet) "\n"))
+                (timp-set-current-job thread packet)
 
-                  ;; debug
-                  (timp--debug-print-packet packet :inbound nil)
-                  
-                  (if (timp-has-next-job-p thread)
-                      (progn
-                        ;; Still has job, keep the sender, quene the thread again
-                        (timp-set-sender thread sender)
-                        (timp--push-to-outbound thread))
-                    ;; No job, close the network stream
-                    (ignore-errors (delete-process sender))
-                    (timp-set-sender thread nil))))
+                ;; debug
+                (timp--debug-print-packet packet :inbound nil)
+                
+                (if (timp-has-next-job-p thread)
+                    (progn
+                      ;; Still has job, keep the sender, quene the thread again
+                      (timp-set-sender thread sender)
+                      (timp--push-to-outbound thread))
+                  ;; No job, close the network stream
+                  (ignore-errors (delete-process sender))
+                  (timp-set-sender thread nil))))
           
           ;; Process not alive, delete form thread record
           (timp-force-quit thread))
@@ -899,16 +903,16 @@ This function helps managing load-path in child threads."
                  (< (* count 0.3) timp-kill-emacs-close-thread-delay)))
         (progn
           (when (and count (= (% count 3) 0))
-           (message "%d thread%s is running. Try to quit %s safely.
+            (message "%d thread%s is running. Try to quit %s safely.
 Emacs will be quit within %d seconds."
-               (length threads)
-               (if (> (length threads) 1) "s" "")
-               (if (> (length threads) 1) "them" "it")
-               (or (and count
-                        (ceiling
-                         (- timp-kill-emacs-close-thread-delay
-                           (* count 0.3))))
-                   timp-kill-emacs-close-thread-delay)))
+                     (length threads)
+                     (if (> (length threads) 1) "s" "")
+                     (if (> (length threads) 1) "them" "it")
+                     (or (and count
+                              (ceiling
+                               (- timp-kill-emacs-close-thread-delay
+                                  (* count 0.3))))
+                         timp-kill-emacs-close-thread-delay)))
           
           (unless count
             ;; Try to safe quit all threads

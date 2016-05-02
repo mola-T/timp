@@ -128,6 +128,7 @@ a quit message from parent thread.")
   (while t (sleep-for 0.5)))
 
 (defun timp-server-receive-data (_proc data)
+  
   "Process received data."
   ;; It needs to be very efficient.
   ;; As it fails to do so, parent process will be blocking
@@ -155,7 +156,7 @@ a quit message from parent thread.")
   "Process a complete data from `timp-server-buffer'."
   ;; It won't block the parent process.
   ;; Efficiency is not care. XD
-    ;; Combine the list
+  ;; Combine the list
   (let ((string (mapconcat 'identity (cdr timp-server-complete-packet-buffer) ""))
         packet
         packet-type)
@@ -163,7 +164,7 @@ a quit message from parent thread.")
     ;; Cut the last newline char
     (setq string (substring string 0 (- (length string) 1)))
     (setq packet (read string))
-      
+    
     ;; Distrubute jobs
     (when (timp-packet-p packet)
       (setq packet-type (timp-packet-get-type packet))
@@ -178,6 +179,7 @@ a quit message from parent thread.")
         (setq timp-server-large-data-permission t))))))
 
 (defun timp-server-send-data (packet)
+  
   "Send out data through the network stream."
   ;; There is a need to seperate large datas
   ;; Because the main thread can't handle large data at the same time
@@ -188,6 +190,7 @@ a quit message from parent thread.")
   ;; To make it more effieicent, small packets (<4kb) can go out directly
   ;; while large packets (>4kb) will need to do a handshake will the main thread
   ;; The main thread holds a quene to let only one large data to be sent at one time
+  
   (let ((data (concat (prin1-to-string packet) "\n"))
         sender)
     (if (> (length data) 4000)
@@ -199,6 +202,7 @@ a quit message from parent thread.")
                                                            timp-server-parent-port
                                                            'plain))))
             (accept-process-output nil 0.05))
+          
           ;; Send a handshake packet in the normal data stream
           (process-send-string sender
                                (concat
@@ -208,9 +212,11 @@ a quit message from parent thread.")
                                                                 :data (length data)))
                                 "\n"))
           (ignore-errors (delete-process sender))
+          
           ;; Wait until premission got
           (while (null timp-server-large-data-permission)
             (accept-process-output nil 0.05))
+          
           ;; Send through large data channel
           (while (null (setq sender (ignore-errors
                                       (open-network-stream timp-server-Dsender
@@ -285,6 +291,7 @@ a quit message from parent thread.")
                   :data data)))
 
 (defun timp-server-exe-packet-handler (packet)
+  
   "Execute the instruction issued from the parent thread.
 It replies with the returning result of the execution to the parent thread.
 Otherwise, it will reply nil.
@@ -305,11 +312,13 @@ a packet will be sent to notify the error."
       (timp-server-send-rpy-data reply-func result))))
 
 (defun timp-server-code-packet-handler (packet)
+  
   "Evaluate the code issued from the parent thread.
 It replies with the returning result of the evaluation to the parent thread.
 Otherwise, it will reply nil.
 If there is any error during the evaluation of code,
 a packet will be sent to notify the error."
+  
   (let ((code (timp-packet-get-data packet))
         (reply-func (timp-packet-get-reply packet))
         (error-handler (timp-packet-get-error-handler packet))
@@ -355,10 +364,12 @@ the source code. So, this function is just put here to say hi to you!"
 
 
 (defun timp-server-debug-write-file (&rest datas)
+  
   "These function is for debugging.
 When developing this package, if anything goes wrong,
 the subprocess just closes directly or does not respond.
 I put this function everywhere to find at which moment it goes wrong."
+  
   (let (string)
     (dolist (data datas)
       (if (stringp data)
