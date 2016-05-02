@@ -1,8 +1,8 @@
-;;; thread-socket.el --- Manage thread data sending  -*- lexical-binding: t; -*- 
+;;; timp-socket.el --- Manage thread data sending  -*- lexical-binding: t; -*- 
 ;;
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
-;; URL: https://github.com/mola-T/thread
+;; URL: https://github.com/mola-T/timp
 ;; Version: 1.0
 ;; Keywords: internal, lisp, processes, tools
 ;;
@@ -26,28 +26,24 @@
 ;;
 ;;; Commentary:
 ;;
-;; Manage threads data.
+;; Manage threads data sending.
 ;; It quenes up inbound and outbound data to prevent data loss
 ;; when transfering data concurrently across threads.
 ;;
-;;; code:
 ;;; Code:
 (require 'eieio-base)
-(require 'fifo)
+(require 'fifo-class)
 (require 'signal)
 
-
-(defsignal thread-socket--outbound-signal
+(defsignal timp-socket--outbound-signal
   ;; Singal to be emitted when there is outbound job.
   "Private variable. Modifying it may cause serious problem.")
 
-
-(defsignal thread-socket--inbound-signal
+(defsignal timp-socket--inbound-signal
   ;; Singal to be emitted when there is inbound job.
   "Private variable. Modifying it may cause serious problem.")
 
-
-;; thread.socket is a singleton class
+;; timp-socket is a singleton class
 ;; It helps quening inbound and outbound jobs.
 ;; When there is thread jobs or reply from child thread.
 ;; They are pushed to the socket instead of process directly.
@@ -57,173 +53,145 @@
 ;; the main thread cannot process it which cause data/job lost.
 ;; Quening is a very fast process which can be done almost at negligible time.
 ;; So, it ensures only one job is processing while it can quening up other jobs.
-(defclass thread.socket (fifo eieio-singleton)
-  ((type
-    :initarg :type
-    :accessor thread.socket.type
-    :protection :private)
-   ;; type = 'parent or 'child
-   (outbound
+(defclass timp-socket (fifo-class eieio-singleton)
+  ((outbound
     :initform nil
-    :accessor thread.socket.outbound
+    :accessor timp-socket-outbound
     :protection :private)
-   ;; buffer = fifo outbound data buffer
-   ;; In parent, outbound contains a thread object
+   ;; fifo outbound data
+   ;; outbound contains a timp object
    ;; which the thread object has a job quene itself
-   ;; In child, outbound contains thread.socket object
    (inbound
     :initform nil
-    :accessor thread.socket.inbound
+    :accessor timp-socket-inbound
     :protection :private)
-   ;; buffer = fifo inbound data buffer
-   ;; Inbound contains unprocessed form of thread.packet object
+   ;; fifo inbound data
+   ;; Inbound contains unprocessed form of timp-packet object
    (buffer
     :initform nil
-    :accessor thread.socket.buffer
+    :accessor timp-socket-buffer
     :protection :private)
-   ;; For parent thread only
-   ;; When thread object fails to send out thread job
-   ;; because thread child thread has not yet reply
-   ;; The thread object is stored here instead of requene immediately
-   ;; This prevents flooding of thread-socket--outbound-signal
+   ;; When timp object fails to send out thread job
+   ;; because child thread has not yet reply
+   ;; The timp object is stored here instead of requene immediately
+   ;; This prevents flooding of timp-socket--outbound-signal
    ;; just for trying to send out job and requening
-   (LDquene
+   (large-data
     :initform nil
-    :accessor thread.socket.LDquene
+    :accessor timp-socket-large-data
     :protection :private)
    ;; It is the large data quene.
-   ;; When child threads have large data (>20kb) to send to parent,
+   ;; When child threads have large data (>4kb) to send to parent,
    ;; they will ask for permission from the parent thread.
    ;; The parent thread will allow only one large data to be sent at the same time.
    ;; Other large data request will be placed here to quene for the premission.
    )
-   "thread.socket class.")
+  "`timp-socket' class.")
 
-
-
-(defconst thread--socket-instance
-  (make-instance 'thread.socket
-                 :type (if noninteractive 'child 'parent))
-  ;; Initialize a thread.socket instance
+(defconst timp--socket-instance
+  (make-instance 'timp-socket)
+  ;; Initialize a timp-socket instance
   "Private variable. Modifying it may cause serious problem.")
 
 
-(defun thread.socket.get ()
-  ;; Return the singleton socket
-  ;; Seems quite useless......
-  ;; May have to remove it.
+(defun timp-socket-inbound-push (data)
+  ;; Push DATA to timp-socket buffer.
   "Private function. Using it may cause serious problem."
-  thread--socket-instance)
+  (fifo-class-push timp--socket-instance 'inbound data)
+  (signal-emit 'timp-socket--inbound-signal))
 
-
-
-
-
-(defun thread.socket.inbound.push (data)
-  ;; Push DATA to thread.socket buffer.
+(defun timp-socket-inbound-pop ()
+  ;; Get DATA from timp-socket buffer.
   "Private function. Using it may cause serious problem."
-  (fifo-push thread--socket-instance 'inbound data)
-  (signal-emit 'thread-socket--inbound-signal))
+  (fifo-class-pop timp--socket-instance 'inbound))
 
-(defun thread.socket.inbound.pop ()
-  ;; Get DATA from thread.socket buffer.
-  "Private function. Using it may cause serious problem."
-  (fifo-pop thread--socket-instance 'inbound))
-
-(defmethod thread.socket.getInbound ((obj thread.socket))
+(defmethod timp-socket-get-inbound ((obj timp-socket))
   ;; Get inbound buffer from socket
   ;; Only for the hasNext function
   "Private function. Using it may cause serious problem."
-  (thread.socket.inbound obj))
+  (timp-socket-inbound obj))
 
-(defun thread.socket.inbound.hasNext ()
+(defun timp-socket-inbound-has-next ()
   ;; Whether there is job in buffer
   "Private function. Using it may cause serious problem."
-  (when (thread.socket.getInbound thread--socket-instance) t))
+  (when (timp-socket-get-inbound timp--socket-instance) t))
 
 
-
-
-
-(defun thread.socket.outbound.push (data)
-  ;; Push DATA to thread.socket buffer.
+(defun timp-socket-outbound-push (data)
+  ;; Push DATA to timp-socket buffer.
   "Private function. Using it may cause serious problem."
-  (fifo-push thread--socket-instance 'outbound data)
-  (signal-emit 'thread-socket--outbound-signal))
+  (fifo-class-push timp--socket-instance 'outbound data)
+  (signal-emit 'timp-socket--outbound-signal))
 
-(defun thread.socket.outbound.pop ()
-  ;; Get DATA from thread.socket buffer.
+(defun timp-socket-outbound-pop ()
+  ;; Get DATA from timp-socket buffer.
   "Private function. Using it may cause serious problem."
-  (fifo-pop thread--socket-instance 'outbound))
+  (fifo-class-pop timp--socket-instance 'outbound))
 
-(defmethod thread.socket.getOutbound ((obj thread.socket))
+(defmethod timp-socket-get-outbound ((obj timp-socket))
   "Private function. Using it may cause serious problem."
   ;; Get Outbound buffer from socket
   ;; Only for the hasNext function
-  (thread.socket.outbound obj))
+  (timp-socket-outbound obj))
 
-(defun thread.socket.outbound.hasNext ()
+(defun timp-socket-outbound-has-next ()
   ;; Whether there is job in buffer
   "Private function. Using it may cause serious problem."
-  (when (thread.socket.getOutbound thread--socket-instance) t))
+  (when (timp-socket-get-outbound timp--socket-instance) t))
 
 
-
-(defmethod thread.socket.getBuffer ((obj thread.socket))
+(defmethod timp-socket-get-buffer ((obj timp-socket))
   ;; Get the socket buffer.
   "Private function. Using it may cause serious problem."
-  (thread.socket.buffer obj))
+  (timp-socket-buffer obj))
 
-(defmethod thread.socket.addToBuffer ((obj thread.socket) thread)
+(defmethod timp-socket-add-to-buffer ((obj timp-socket) thread)
   ;; Add the thread to buffer if it is not here.
   "Private function. Using it may cause serious problem."
-  (cl-pushnew (thread.socket.buffer obj) thread))
+  (cl-pushnew (timp-socket-buffer obj) thread))
 
-(defmethod thread.socket.removeFromBuffer ((obj thread.socket) thread)
+(defmethod timp-socket--remove-from-buffer ((obj timp-socket) thread)
   ;; Get the thread from buffer and remove it the thread form buffer.
   "Private function. Using it may cause serious problem."
-  (setf (thread.socket.buffer obj) (remq thread (thread.socket.buffer obj))))
+  (setf (timp-socket-buffer obj) (remq thread (timp-socket-buffer obj))))
 
-(defun thread.socket.buffer.add (thread)
+(defun timp-add-to-socket-buffer (thread)
   ;; Add the thread to thread.scoket's buffer if it is not here.
   "Private function. Using it may cause serious problem."
-  (thread.socket.addToBuffer thread--socket-instance thread))
+  (timp-socket-add-to-buffer timp--socket-instance thread))
 
-(defun thread.socket.buffer.remove (thread)
+(defun timp-socket-remove-from-buffer (thread)
   ;; Remove the thread from thread.scoket's buffer if it exists.
   "Private function. Using it may cause serious problem."
-  (thread.socket.removeFromBuffer thread--socket-instance thread))
+  (timp-socket--remove-from-buffer timp--socket-instance thread))
 
-(defun thread.socket.isInBuffer (thread)
-  ;; Return t if thread is in thread.socket.buffer.
+(defun timp-socket-job-in-buffer-p (thread)
+  ;; Return t if thread is in timp-socket-buffer.
   "Private function. Using it may cause serious problem."
-  (when (memq thread (thread.socket.getBuffer thread--socket-instance)) t))
+  (when (memq thread (timp-socket-get-buffer timp--socket-instance)) t))
 
 
-(defun thread.socket.LDquene.push (thread)
+(defun timp-socket-large-data-push (thread)
   ;; When child thread sends large data request
   ;; and it is not ready to handle,
   ;; push the child thread to the large-data-quene.
   "Private function. Using it may cause serious problem."
-  (fifo-push thread--socket-instance 'LDquene thread))
+  (fifo-class-push timp--socket-instance 'large-data thread))
 
-(defun thread.socket.LDquene.pop ()
-  ;; Pop the first thread in the LDquene.
+(defun timp-socket-large-data-pop ()
+  ;; Pop the first thread in the large-data.
   "Private function. Using it may cause serious problem."
-  (fifo-pop thread--socket-instance 'LDquene))
+  (fifo-class-pop timp--socket-instance 'large-data))
 
-(defun thread.socket.LDquene.first ()
-  ;; Get the first thread in the LDquene without removing it.
+(defun timp-socket-large-data-first ()
+  ;; Get the first thread in the large-data without removing it.
   "Private function. Using it may cause serious problem."
-  (fifo-first thread--socket-instance 'LDquene))
+  (fifo-class-first timp--socket-instance 'large-data))
 
-(defun thread.socket.LDquene.hasNext ()
-  ;; Return whether there is job in the LDquene
+(defun timp-socket-large-data-has-next ()
+  ;; Return whether there is job in the large-data
   "Private function. Using it may cause serious problem."
-  (when (fifo-first thread--socket-instance 'LDquene) t))
+  (when (fifo-class-first timp--socket-instance 'large-data) t))
 
-
-
-
-(provide 'thread-socket)
-;;; thread-socket.el ends here
+(provide 'timp-socket)
+;;; timp-socket.el ends here
