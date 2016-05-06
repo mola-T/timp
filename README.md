@@ -12,7 +12,7 @@ You may think of `timp` is an alias of `thread`.)
 ## Requirement
 
 * Emacs 24.4
-* Netowrk adaptor
+* Netowrk adapter
 
 ## Dependency
 
@@ -265,7 +265,7 @@ When you do `(setq a 1)` in parent thread, `a` is not defined in all threads.
 What `timp` is doing is simply opening instances of Emacs (the real nature of child threads).
 The main instance (the parent thread) acts as a controller to quene up jobs, distribute jobs, send instructions to threads, receive returned results from threads and distribute the result to corresponding functions.
 Since there is no shared memory, how data is transferred is a big problem. `timp` achieves by transferring data through localhost.
-This is why you need a network adaptor for this package.
+This is why you need a network adapter for this package.
 
 Although `thread` is not a real multithread library, it does perform very close to multithread behaviour.
 
