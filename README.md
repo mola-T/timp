@@ -12,7 +12,7 @@ You may think of `timp` is an alias of `thread`.)
 ## Requirement
 
 * Emacs 24.4
-* Netowrk adapter
+* Network adapter
 
 ## Dependency
 
