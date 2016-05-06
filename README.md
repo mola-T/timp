@@ -1,3 +1,5 @@
+[![MELPA](http://melpa.org/packages/timp-badge.svg)](http://melpa.org/#/timp)
+
 # Timp
 
 The first multithreading elisp library.
