@@ -3,7 +3,6 @@
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
 ;; URL: https://github.com/mola-T/timp
-;; Version: 1.0
 ;; Keywords: internal, lisp, processes, tools
 ;;
 ;;; License:
@@ -81,6 +80,9 @@ So `timp-server-buffer' is able to handle one more incoming packet.
 Usually there is only one packet to receive at the same time.
 However, there is an expectional case that it needs to receive
 a large data sending premission.")
+
+(defvar timp-server-inhibit-message nil
+  "Non-nil value prevent message from redirecting back to parent thread.")
 
 (defsignal timp-server-quit-signal
   "A block signal to be emitted when it receives
@@ -332,12 +334,21 @@ a packet will be sent to notify the error."
         (timp-server-send-err-data code error-handler error-info)
       (timp-server-send-rpy-data reply-func result))))
 
+(defmacro with-timp-server-inhibited-message (&rest body)
+  "Temporary inbibite message in BODY from redirecting back
+to parent thread."
+  `(progn
+     (setq timp-server-inhibit-message t)
+     ,@body
+     (setq timp-server-inhibit-message nil)))
+
 (defun timp-server-message (_orig-func &rest args)
   "Message is meaningless in child thread.
   So send it back to parent."
-  (let ((message (ignore-errors (apply 'format args))))
+  (unless timp-server-inhibit-message
+   (let ((message (ignore-errors (apply 'format args))))
     (when message
-      (timp-server-send-msg-data message))))
+      (timp-server-send-msg-data message)))))
 
 (defun timp-server-set-load-path (path)
   "Set load path in `trim-server'."

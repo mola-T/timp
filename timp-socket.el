@@ -3,7 +3,6 @@
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
 ;; URL: https://github.com/mola-T/timp
-;; Version: 1.0
 ;; Keywords: internal, lisp, processes, tools
 ;;
 ;;; License:
