@@ -815,9 +815,39 @@ This function helps managing load-path in child threads."
   (timp-send-exec obj 'timp-server-require-packet packets
                   :error-handler 'timp-debug-print))
 
+(defmethod timp--send-variable ((obj timp) var-symbol var-value)
+
+  "Not supposed to be called directly. Use `timp-send-variable' instead."
+  
+  (timp-send-code obj
+                  :code `(setq ,var-symbol ',var-value)
+                  :error-handler 'timp-debug-print))
+
+(defmacro timp-send-variable (thread &rest variables)
+
+  "Set VARIABLES in child THREAD to value in parent threads.
+Note that VARIABLES do not need to be quoted.
+
+For example, in parent thread, a = 10 and b = 20;
+in child thread a = 0 and b = 0.
+
+\(timp-send-variable child-thread a b\)
+
+After this operation, a = 10 and b = 20 in child thread."
+  
+  (let (validated-variable)
+    (dolist (var variables)
+      (if (boundp var)
+          (push var validated-variable)
+        ;; Should it raises an error or just print a message?
+        (error "%s is not defined." (symbol-name var))))
+    (setq validated-variable (nreverse validated-variable))
+    `(dolist (var ',validated-variable)
+       (timp--send-variable ,thread var (symbol-value var)))))
+
 (defun timp-debug-print (object)
 
-  "Print string to thread log."
+  "Print OBJECT to thread log."
 
   (unless (stringp object)
     (setq object (prin1-to-string object)))
