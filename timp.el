@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
 ;; URL: https://github.com/mola-T/timp
-;; Version: 1.1.0
+;; Version: 1.2.0
 ;; Package-Requires: ((emacs "24.4")(cl-lib "0.5")(fifo-class "1.0")(signal "1.0"))
 ;; Keywords: internal, lisp, processes, tools
 ;;
