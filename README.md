@@ -601,8 +601,9 @@ _______
 
 ## Change log
 
-[1.2.0](change_log/1.2.0) - Add function to send variables to child thread easily
-[1.1.0](change_log/1.1.0) - Add ability to inhibit message from redirecting back from child thread.
+[1.2.0](change_log/1.2.0.md) - Add function to send variables to child thread easily.
+
+[1.1.0](change_log/1.1.0.md) - Add ability to inhibit message from redirecting back from child thread.
 
 _______
 
