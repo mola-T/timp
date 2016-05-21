@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015-2016 Mola-T
 ;; Author: Mola-T <Mola@molamola.xyz>
 ;; URL: https://github.com/mola-T/timp
-;; Version: 1.2.0
+;; Version: 1.2.1
 ;; Package-Requires: ((emacs "24.4")(cl-lib "0.5")(fifo-class "1.0")(signal "1.0"))
 ;; Keywords: internal, lisp, processes, tools
 ;;
@@ -281,6 +281,7 @@ or `timp-force-quit'."
   ;; So data chunk is put in timp--data-buffer first.
   ;; And combine to form a complete data when the newline character is met.
   "Private function. Using it may cause serious problem."
+  
   (if (string-match "\n" data (- (length data) 1))
       (progn
         (nconc timp--data-buffer (list data))
