@@ -363,7 +363,7 @@ to parent thread."
   "Terminate the thread safely by emit a signal.
 Any backend packages should make connection to this signal
 if they want to quit safely."
-  (signal-emitb timp-server-quit-signal)
+  (signal-emitb 'timp-server-quit-signal)
   (timp-server-send-quit))
 
 (defun timp-server-sleep-for (second)
