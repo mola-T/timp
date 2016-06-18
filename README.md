@@ -601,6 +601,8 @@ _______
 
 ## Change log
 
+[1.3.0](change_log/1.3.0.md) - Add function to help child thread respond to parent thread in a long running function.
+
 [1.2.0](change_log/1.2.0.md) - Add function to send variables to child thread easily.
 
 [1.1.0](change_log/1.1.0.md) - Add ability to inhibit message from redirecting back from child thread.
