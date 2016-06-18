@@ -180,6 +180,12 @@ a quit message from parent thread.")
        ((eq packet-type 'ldr)
         (setq timp-server-large-data-permission t))))))
 
+(defun timp-server-process-data-maybe ()
+  "Process parent thread request if existed.
+This function is designed to be inserted in a long running function
+so that parent thread request could still be handled ASAP."
+  (accept-process-output))
+
 (defun timp-server-send-data (packet)
   
   "Send out data through the network stream."
@@ -192,7 +198,7 @@ a quit message from parent thread.")
   ;; To make it more effieicent, small packets (<4kb) can go out directly
   ;; while large packets (>4kb) will need to do a handshake will the main thread
   ;; The main thread holds a quene to let only one large data to be sent at one time
-  
+
   (let ((data (concat (prin1-to-string packet) "\n"))
         sender)
     (if (> (length data) 4000)
