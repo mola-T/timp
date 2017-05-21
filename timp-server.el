@@ -45,6 +45,8 @@
 ;; (defvar threadS-stop nil
 ;;   "Thread will stop if it is set to t.")
 
+(require 'signal)
+
 (defconst timp-server-stream "timp-server-stream"
   "Process name of the data stream.
 Implement through localhost.")
